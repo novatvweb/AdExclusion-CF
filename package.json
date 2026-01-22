@@ -5,10 +5,11 @@
   "description": "Edge-native Ad Exclusion Engine for High-Traffic Portals",
   "private": true,
   "scripts": {
-    "build": "echo 'No build step required'",
-    "deploy": "wrangler pages deploy . --project-name adexclusion-manager"
+    "build": "echo 'Build step skipping - assets are ready'",
+    "deploy": "wrangler pages deploy . --project-name adex-manager"
   },
   "devDependencies": {
-    "wrangler": "^3.101.0"
+    "wrangler": "^3.101.0",
+    "@cloudflare/workers-types": "^4.20241218.0"
   }
 }

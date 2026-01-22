@@ -1,20 +1,23 @@
 
 # AdExclusion Enterprise 🚀
 
-**AdExclusion Enterprise** je administrativni alat dizajniran za news portale visoke posjećenosti.
+**AdExclusion Enterprise** koristi Cloudflare Pages arhitekturu za maksimalne performanse na Edge-u.
 
-## 🚀 Cloudflare Pages Dashboard Postavke
+## 🚀 Cloudflare Dashboard Postavke
 
-Ako sustav zahtijeva unos svih polja, unesite ove vrijednosti:
+Ako sustav od vas traži unos u obavezna polja, unesite sljedeće:
 
-1. **Build command**: `echo "Skip build"`
+1. **Build command**: `npm run build`
 2. **Build output directory**: `.`
-3. **Deploy command**: `npx wrangler pages deploy . --project-name adexclusion-manager`
+3. **Deploy command**: `npm run deploy`
 
-### KV Binding (Obavezno)
-U postavkama Pages-a pod **Settings > Functions > KV namespace bindings**:
+### Ručna konfiguracija KV bindinga
+U Cloudflare sučelju pod **Settings > Functions > KV namespace bindings**:
 - **Variable name**: `AD_EXCLUSION_KV`
-- **KV namespace**: Izaberite vaš kreirani namespace.
+- **KV namespace**: Odaberite vaš namespace s ID-em `a8017b5da883497c93f42d18b77325a3`.
+
+### Zašto "npm run deploy"?
+Ova naredba poziva `wrangler pages deploy .`. To osigurava da Cloudflare prepozna projekt kao **Pages** (Static + Functions), a ne kao običan **Worker**, čime se rješava greška koju ste dobili.
 
 ---
-*Digital Ops Team.*
+*Senior Architecture Team*
