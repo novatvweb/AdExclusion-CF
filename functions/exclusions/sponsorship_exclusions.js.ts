@@ -22,7 +22,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   return new Response(data.script, {
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
-      "Access-Control-Allow-Origin": "*",
       "Cache-Control": "public, max-age=60, s-maxage=60",
       "X-Content-Type-Options": "nosniff",
     },
