@@ -9,11 +9,11 @@
 /*
 // @ts-ignore - Assuming page_meta exists globally on portal
 window.runSponsorshipExclusion = function(rules) {
-  if (!window.page_meta || !window.page_meta.third_party_apps || !window.page_meta.third_party_apps.ntAds) {
+  if (!page_meta || !page_meta.third_party_apps || !page_meta.third_party_apps.ntAds) {
     return;
   }
 
-  const targeting = window.page_meta.third_party_apps.ntAds.targeting;
+  const targeting = page_meta.third_party_apps.ntAds.targeting;
 
   rules.forEach(rule => {
     const { key, op, val, sel } = rule;
