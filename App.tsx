@@ -1,7 +1,4 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-
-// --- KONSTANTE ---
 const TARGETING_KEYS = [
   { label: 'Portal (Site)', value: 'site' },
   { label: 'Ključne riječi (Keywords)', value: 'keywords' },
@@ -12,16 +9,12 @@ const TARGETING_KEYS = [
   { label: 'Domena (Domain)', value: 'domain' },
   { label: 'AB Test', value: 'ab_test' }
 ];
-
 const DEFAULT_SELECTORS = [
   { label: 'Branding (Background)', value: '.bg-branding-main' },
   { label: 'Glavni Promo Box', value: '#promo-box-general' },
   { label: 'Sponzor u dnu (Footer)', value: '.footer-sponsor-logo' },
   { label: 'Bočni Banner (Sky)', value: '.sky-ads-wrapper' }
 ];
-
-// --- POMOĆNE KOMPONENTE ---
-
 const Sandbox = ({ rules }) => {
   const [mockData, setMockData] = useState({
     site: 'gol',
@@ -32,7 +25,6 @@ const Sandbox = ({ rules }) => {
     content_id: 'article:998877',
     domain: 'gol.dnevnik.hr'
   });
-
   const activeMatches = useMemo(() => {
     return rules.filter(rule => {
       if (!rule.isActive) return false;
@@ -43,7 +35,6 @@ const Sandbox = ({ rules }) => {
       return rule.operator === 'equals' ? act === val : act.includes(val);
     });
   }, [rules, mockData]);
-
   return (
     <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
       <div className="flex items-center gap-3 mb-8">
@@ -76,23 +67,18 @@ const Sandbox = ({ rules }) => {
     </div>
   );
 };
-
-// --- GLAVNA APLIKACIJA ---
-
 const App = () => {
   const [rules, setRules] = useState([]);
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
-
   useEffect(() => {
     fetch('/api/sync').then(res => res.json()).then(data => {
       setRules(data.rules || []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
-
   const saveToKV = async (newRules) => {
     setRules(newRules);
     try {
@@ -103,25 +89,21 @@ const App = () => {
       });
     } catch (e) { console.error("KV Sync Error", e); }
   };
-
   const publish = async () => {
     setIsPublishing(true);
     const activeRules = rules.filter(r => r.isActive).map(r => ({
       key: r.targetKey, op: r.operator, val: r.value, sel: r.targetElementSelector
     }));
-    
     const script = `/** AdExclusion Live Engine | Generated: ${new Date().toISOString()} */
 (function(){
   const rules = ${JSON.stringify(activeRules)};
   const targeting = window.page_meta?.third_party_apps?.ntAds?.targeting;
   if (!targeting || !rules.length) return;
-  
   const injectStyle = (sel) => {
     const s = document.createElement('style');
     s.innerHTML = sel + ' { display: none !important; visibility: hidden !important; pointer-events: none !important; height: 0 !important; margin: 0 !important; padding: 0 !important; }';
     document.head.appendChild(s);
   };
-
   rules.forEach(rule => {
     const actual = targeting[rule.key];
     if (actual === undefined || actual === null) return;
@@ -134,7 +116,6 @@ const App = () => {
     if (match) injectStyle(rule.sel);
   });
 })();`;
-
     try {
       await fetch('/api/sync', {
         method: 'POST',
@@ -145,12 +126,9 @@ const App = () => {
     } catch (e) { alert('Greška pri objavljivanju.'); }
     finally { setIsPublishing(false); }
   };
-
   if (loading) return null;
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
-      {/* HEADER */}
       <header className="bg-white border-b border-slate-200 h-24 px-12 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-6">
           <a href="/" title="Sink" className="flex items-center md:p-4 p-2 px-6 space-x-2 md:text-xl text-base font-black bg-[#b71918] text-white">
@@ -169,19 +147,16 @@ const App = () => {
             </svg>
             <span className="pt-0.5">/ AdExclusion</span>
           </a>
-          
-          <div className="hidden lg:block h-8 w-px bg-slate-100"></div>
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sponsorship Manager</p>
-            <p className="text-[11px] font-bold text-slate-900 uppercase">DNEVNIK.hr AdOps Core</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Digital Ops</p>
+            <p className="text-[11px] font-bold text-slate-900 uppercase">Enterprise Core</p>
           </div>
         </div>
-        
         <div className="flex items-center gap-4">
           <button 
             onClick={publish} 
             disabled={isPublishing}
-            className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-[2px] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-green-100 transition-all active:scale-95 disabled:opacity-50"
+            className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-[2px] font-black text-[10px] uppercase tracking-widest shadow-xl transition-all active:scale-95 disabled:opacity-50"
           >
             {isPublishing ? 'Sinkronizacija...' : '🚀 Objavi na Edge'}
           </button>
@@ -193,9 +168,7 @@ const App = () => {
           </button>
         </div>
       </header>
-
       <main className="flex-1 max-w-6xl w-full mx-auto py-16 px-6">
-        {/* RULE EDITOR */}
         {isAdding && editingRule && (
           <div className="mb-12 bg-white p-10 rounded-[2.5rem] shadow-2xl border border-indigo-100 animate-in fade-in slide-in-from-top-4">
             <h2 className="text-xl font-black uppercase tracking-tight mb-8">Konfiguracija Pravila</h2>
@@ -239,21 +212,19 @@ const App = () => {
             </div>
           </div>
         )}
-
-        {/* LISTA PRAVILA */}
         <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden mb-12">
           <table className="w-full text-left">
             <thead className="bg-slate-50/50 border-b border-slate-100">
               <tr>
                 <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
                 <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Kampanja</th>
-                <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Pravilo (Key & Val)</th>
+                <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Pravilo</th>
                 <th className="px-10 py-6 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Akcije</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rules.length === 0 ? (
-                <tr><td colSpan={4} className="px-10 py-20 text-center text-slate-300 italic font-bold uppercase tracking-widest">Nema definiranih izuzetaka</td></tr>
+                <tr><td colSpan={4} className="px-10 py-20 text-center text-slate-300 italic font-bold uppercase tracking-widest">Nema aktivnih izuzetaka</td></tr>
               ) : rules.map(rule => (
                 <tr key={rule.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-10 py-8">
@@ -261,15 +232,10 @@ const App = () => {
                       <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${rule.isActive ? 'left-7' : 'left-1'}`} />
                     </button>
                   </td>
+                  <td className="px-10 py-8 font-bold text-slate-900">{rule.name}</td>
                   <td className="px-10 py-8">
-                    <div className="font-bold text-slate-900">{rule.name}</div>
-                    <code className="text-[10px] text-indigo-500 font-mono bg-indigo-50 px-2 py-0.5 rounded mt-1 inline-block">{rule.targetElementSelector}</code>
-                  </td>
-                  <td className="px-10 py-8">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-black uppercase bg-slate-100 px-2 py-1 rounded text-slate-500 tracking-wider">{rule.targetKey}</span>
-                      <span className="text-[10px] font-bold text-indigo-600">"{rule.value}"</span>
-                    </div>
+                    <span className="text-[9px] font-black uppercase bg-slate-100 px-2 py-1 rounded text-slate-500 mr-2">{rule.targetKey}</span>
+                    <span className="text-[10px] font-bold text-indigo-600">"{rule.value}"</span>
                   </td>
                   <td className="px-10 py-8 text-right">
                     <button onClick={() => saveToKV(rules.filter(r => r.id !== rule.id))} className="text-red-200 hover:text-red-500 transition-colors p-2">
@@ -281,10 +247,8 @@ const App = () => {
             </tbody>
           </table>
         </div>
-
         <Sandbox rules={rules} />
       </main>
-
       <footer className="py-12 bg-white border-t border-slate-200 mt-20">
         <div className="max-w-6xl mx-auto px-6 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
           <div>© 2025 Nova TV • Digital Ops Core</div>
@@ -297,5 +261,4 @@ const App = () => {
     </div>
   );
 };
-
 export default App;
