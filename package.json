@@ -3,5 +3,8 @@
   "name": "adexclusion-enterprise",
   "version": "2.1.0",
   "description": "Edge-native Ad Exclusion Engine for High-Traffic Portals",
-  "private": true
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler pages deploy ."
+  }
 }
