@@ -5,8 +5,8 @@
   "description": "Edge-native Ad Exclusion Engine for High-Traffic Portals",
   "private": true,
   "scripts": {
-    "build": "echo 'No build required for static assets'",
-    "deploy": "wrangler pages deploy . --project-name adex-manager"
+    "build": "echo 'Build assets prepared'",
+    "deploy": "echo 'Deployment triggered by Pages CI/CD'"
   },
   "devDependencies": {
     "wrangler": "^3.101.0",
