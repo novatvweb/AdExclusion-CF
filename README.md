@@ -1,22 +1,24 @@
 
 # AdExclusion Enterprise 🚀
 
-**AdExclusion Enterprise** je spreman za rad na Cloudflare Pages infrastrukturi.
+**AdExclusion Enterprise** je optimiziran za Cloudflare Pages Git-integritaciju.
 
-## 🛠️ Deployment Popravak (Kritično)
+## ✅ Rješenje za "Authentication Error [code: 10000]"
 
-Na temelju logova, sustav je padao zbog `[build]` sekcije u `wrangler.toml`. To je sada uklonjeno.
+Greška se pojavljivala jer je sustav pokušavao izvršiti `wrangler deploy` unutar CI/CD okruženja koje je već u procesu deploymenta. 
 
-### Postavke u Cloudflare Dashboardu:
+### Ispravne postavke Dashboarda:
 
-Na slici koju ste poslali, polja trebaju biti:
+S obzirom na polja sa slike, unesite točno ovo:
 
-1. **Build command**: `npm run build` (Sada je to siguran `echo`)
-2. **Build output directory**: `.` 
-3. **Deploy command**: `npm run deploy` (Ovo će sada proći jer je `wrangler.toml` validan)
+1. **Build command**: `npm run build`
+2. **Build output directory**: `.`
+3. **Deploy command**: `npm run deploy` (Ovo će sada samo ispisati poruku i dopustiti Cloudflareu da završi svoj nativni proces)
 
-### KV Namespace
-Provjerite je li binding `AD_EXCLUSION_KV` postavljen u **Settings > Functions > KV namespace bindings** unutar Pages projekta na Dashboardu, jer `wrangler.toml` za Pages ponekad zahtijeva i ručnu potvrdu u UI-u.
+### Arhitektura
+- **Static Assets**: Sve datoteke iz roota (`index.html`, `App.tsx`, itd.) se serviraju automatski.
+- **Functions**: Mapa `/functions` se automatski pretvara u Edge rute.
+- **KV Binding**: Provjerite u `Settings > Functions` da je `AD_EXCLUSION_KV` povezan s ispravnim namespaceom.
 
 ---
-*Digital Ops Architecture*
+*Senior Systems Architect*
