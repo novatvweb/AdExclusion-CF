@@ -18,7 +18,7 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
 
   const scriptCode = `(function() {
   const rules = ${configJson.replace(/\n/g, '\n  ')};
-  const meta = window.page_meta?.third_party_apps?.ntAds?.targeting;
+  const meta = page_meta?.third_party_apps?.ntAds?.targeting;
   if (!meta) return;
 
   rules.forEach(rule => {
