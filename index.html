@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdExclusion Enterprise</title>
+    
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <script>
+      window.process = { env: { API_KEY: "" } };
+
+      async function bootstrap() {
+        const root = document.getElementById('root');
+        try {
+          const [React, ReactDOM] = await Promise.all([
+            import('https://esm.sh/react@18.3.1'),
+            import('https://esm.sh/react-dom@18.3.1/client')
+          ]);
+          
+          window.React = React.default || React;
+          window.ReactDOM = ReactDOM.default || ReactDOM;
+
+          const response = await fetch('./App.tsx');
+          const code = await response.text();
+          
+          const sanitizedCode = code
+            .replace(/import\s+React,\s+{[^}]*}\s+from\s+['"]react['"];?/g, (m) => `const {${m.match(/{([^}]*)}/)[1]}} = window.React;`)
+            .replace(/import\s+React\s+from\s+['"]react['"];?/g, '')
+            .replace(/import\s+{([^}]*)}\s+from\s+['"]react['"];?/g, 'const {$1} = window.React;')
+            .replace(/import\s+.*from\s+['"]\.\/[^'"]*['"];?/g, '');
+
+          const transformed = Babel.transform(sanitizedCode, {
+            presets: [
+              [Babel.availablePresets['typescript'], { allExtensions: true, isTSX: true }],
+              [Babel.availablePresets['react'], { runtime: 'classic' }]
+            ],
+            filename: 'App.tsx'
+          }).code;
+
+          const blob = new Blob([transformed], { type: 'application/javascript' });
+          const url = URL.createObjectURL(blob);
+          const { default: App } = await import(url);
+
+          window.ReactDOM.createRoot(root).render(window.React.createElement(App));
+        } catch (e) {
+          console.error(e);
+          root.innerHTML = `<div style="padding:40px;text-align:center;font-family:sans-serif;"><h1>System Error</h1><p>${e.message}</p></div>`;
+        }
+      }
+      window.addEventListener('load', bootstrap);
+    </script>
+    <style>
+      body { font-family: 'Inter', sans-serif; background: #f8fafc; margin: 0; }
+      #root:empty::after { content: "POVEZIVANJE..."; display: block; text-align: center; margin-top: 45vh; font-weight: 900; color: #4f46e5; letter-spacing: 0.2em; animation: fade 1s infinite; }
+      @keyframes fade { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>

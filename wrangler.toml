@@ -1,0 +1,7 @@
+
+name = "adexclusion-manager"
+pages_build_output_dir = "."
+
+[[kv_namespaces]]
+binding = "AD_EXCLUSION_KV"
+id = "YOUR_KV_NAMESPACE_ID" # Ovo ćete zamijeniti stvarnim ID-om nakon kreiranja KV-a

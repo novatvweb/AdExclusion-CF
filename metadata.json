@@ -1,0 +1,5 @@
+{
+  "name": "Sponsorship Blacklist Manager - Cloudflare deploy",
+  "description": "An administrative tool for managing ad exclusion rules on a high-traffic news portal, enabling sales teams to hide general sponsors based on specific content targeting data.",
+  "requestFramePermissions": []
+}

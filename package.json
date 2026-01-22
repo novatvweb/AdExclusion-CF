@@ -1,0 +1,14 @@
+
+{
+  "name": "sponsorship-blacklist-manager",
+  "version": "1.0.0",
+  "description": "AdExclusion Manager with Node.js Backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "path": "^0.12.7"
+  }
+}
