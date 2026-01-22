@@ -1,0 +1,17 @@
+
+{
+  "version": 1,
+  "include": [
+    "/api/*",
+    "/exclusions/*"
+  ],
+  "exclude": [
+    "/index.html",
+    "/App.tsx",
+    "/constants.ts",
+    "/types.ts",
+    "/metadata.json",
+    "/*.js",
+    "/*.css"
+  ]
+}
