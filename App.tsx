@@ -175,21 +175,27 @@ const App = () => {
   });
 })();`;
     try {
-      // Sync rules and script
       await fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rules, script })
       });
       
-      // Cache Invalidation Call
+      let purgeMsg = '';
       try {
-        await fetch('/api/purge', { method: 'POST' });
-      } catch (purgeErr) {
-        console.error("Purge Error (Non-blocking)", purgeErr);
+        const purgeRes = await fetch('/api/purge', { method: 'POST' });
+        const purgeJson = await purgeRes.json();
+        if (purgeJson.success) {
+          purgeMsg = ' i cache je invalidiran.';
+        } else {
+          purgeMsg = '. UPOZORENJE: Cache invalidacija nije uspjela (CF Error).';
+          console.error('CF Purge Failed:', purgeJson);
+        }
+      } catch (e) {
+        purgeMsg = '. UPOZORENJE: Neuspješan poziv za cache invalidaciju.';
       }
 
-      alert('🚀 USPJEH! Pravila su sinkronizirana s Edge mrežom i cache je invalidiran.');
+      alert('🚀 USPJEH! Pravila su sinkronizirana s Edge mrežom' + purgeMsg);
     } catch (e) { alert('Greška pri objavljivanju.'); }
     finally { setIsPublishing(false); }
   };
@@ -200,15 +206,17 @@ const App = () => {
   };
 
   const handleSubmit = () => {
-    if (!editingRule.name || !editingRule.value || !editingRule.targetElementSelector) return;
+    if (!editingRule.name || !editingRule.value || !editingRule.targetElementSelector) {
+        alert("Sva polja su obavezna.");
+        return;
+    }
     
     let newRules;
     const exists = rules.find(r => r.id === editingRule.id);
-    
     if (exists) {
       newRules = rules.map(r => r.id === editingRule.id ? editingRule : r);
     } else {
-      newRules = [editingRule, ...rules];
+      newRules = [{ ...editingRule, id: Math.random().toString(), createdAt: Date.now() }, ...rules];
     }
     
     saveToKV(newRules);
@@ -260,7 +268,7 @@ const App = () => {
         {isAdding && editingRule && (
           <div className="mb-12 bg-white p-10 rounded-[2.5rem] shadow-2xl border border-indigo-100 animate-in fade-in slide-in-from-top-4">
             <h2 className="text-xl font-black uppercase tracking-tight mb-8">
-              {rules.some(r => r.id === editingRule.id) ? 'Uredi Pravilo' : 'Konfiguracija Pravila'}
+                {rules.some(r => r.id === editingRule.id) ? 'Uredi Pravilo' : 'Konfiguracija Pravila'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="md:col-span-3">
