@@ -26,9 +26,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const data = JSON.parse(dataRaw);
   
   // Provjeravamo ima li ijedno pravilo status isActive: true
-  const hasActiveRules = data.rules && data.rules.some((r: any) => r.isActive === true);
+  const hasActiveRules = data.rules && data.rules.some((r: any) => !!r.isActive);
   
-  const output = hasActiveRules ? data.script : fallback;
+  let output = hasActiveRules ? (data.script || fallback) : fallback;
+
+  // Ako skripta sadrži prazan niz, vraćamo fallback komentar
+  if (output !== fallback && output.includes("const rules = [];")) {
+    output = fallback;
+  }
 
   return new Response(output, {
     headers: {
