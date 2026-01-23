@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BlacklistRule, Operator } from '../types';
 import { TARGETING_KEYS } from '../constants';
@@ -38,7 +39,10 @@ export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle })
         </thead>
         <tbody className="bg-white divide-y divide-slate-200">
           {rules.map((rule) => {
-            const keyLabel = TARGETING_KEYS.find(k => k.value === rule.targetKey)?.label || rule.targetKey;
+            // Fix: Access targetKey from the first condition in the conditions array (line 41 error fix)
+            const firstCond = rule.conditions?.[0] || { targetKey: 'section', operator: Operator.EQUALS, value: '' };
+            const keyLabel = TARGETING_KEYS.find(k => k.value === firstCond.targetKey)?.label || firstCond.targetKey;
+            
             return (
               <tr key={rule.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -56,8 +60,14 @@ export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle })
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase">{keyLabel}</span>
-                    <span className="text-sm text-slate-400">{rule.operator === Operator.EQUALS ? '==' : 'sadrži'}</span>
-                    <span className="text-sm font-medium text-indigo-600">"{rule.value}"</span>
+                    <span className="text-sm text-slate-400">
+                      {/* Fix: Access operator and value from the first condition (line 59-60 errors fix) */}
+                      {firstCond.operator === Operator.EQUALS ? '==' : 'sadrži'}
+                    </span>
+                    <span className="text-sm font-medium text-indigo-600">"{firstCond.value}"</span>
+                    {rule.conditions && rule.conditions.length > 1 && (
+                      <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1 rounded font-bold">+{rule.conditions.length - 1}</span>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Operator, BlacklistRule, TargetingKey, ActionType } from '../types';
 import { TARGETING_KEYS, DEFAULT_SELECTORS } from '../constants';
@@ -10,18 +11,35 @@ interface RuleFormProps {
 
 export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialData }) => {
   const [name, setName] = useState(initialData?.name || '');
-  const [targetKey, setTargetKey] = useState<TargetingKey>(initialData?.targetKey || 'section');
-  const [operator, setOperator] = useState<Operator>(initialData?.operator || Operator.EQUALS);
-  const [value, setValue] = useState(initialData?.value || '');
+  // Fix: Access targetKey from the first condition in the conditions array (line 13 error fix)
+  const [targetKey, setTargetKey] = useState<TargetingKey>(
+    initialData?.conditions?.[0]?.targetKey || (initialData as any)?.targetKey || 'section'
+  );
+  // Fix: Access operator from the first condition in the conditions array (line 14 error fix)
+  const [operator, setOperator] = useState<Operator>(
+    initialData?.conditions?.[0]?.operator || (initialData as any)?.operator || Operator.EQUALS
+  );
+  // Fix: Access value from the first condition in the conditions array (line 15 error fix)
+  const [value, setValue] = useState(
+    initialData?.conditions?.[0]?.value || (initialData as any)?.value || ''
+  );
   const [selector, setSelector] = useState(initialData?.targetElementSelector || '');
   const [action, setAction] = useState<ActionType>(initialData?.action || 'hide');
 
   useEffect(() => {
     if (initialData) {
       if (initialData.name) setName(initialData.name);
-      if (initialData.targetKey) setTargetKey(initialData.targetKey);
-      if (initialData.operator) setOperator(initialData.operator);
-      if (initialData.value) setValue(initialData.value);
+      // Fix: Populate state from the first condition if available, with flat fallback for AI compatibility (line 22-24 errors fix)
+      if (initialData.conditions && initialData.conditions[0]) {
+        setTargetKey(initialData.conditions[0].targetKey);
+        setOperator(initialData.conditions[0].operator);
+        setValue(initialData.conditions[0].value);
+      } else if ((initialData as any)?.targetKey) {
+        setTargetKey((initialData as any).targetKey);
+        if ((initialData as any).operator) setOperator((initialData as any).operator);
+        if ((initialData as any).value) setValue((initialData as any).value);
+      }
+      
       if (initialData.targetElementSelector) setSelector(initialData.targetElementSelector);
       if (initialData.action) setAction(initialData.action);
     }
@@ -30,11 +48,11 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !value || !selector) return;
+    // Fix: Wrap the single condition into an array to match BlacklistRule interface requirements (line 35 error fix)
     onSubmit({
       name,
-      targetKey,
-      operator,
-      value: value.trim(),
+      conditions: [{ targetKey, operator, value: value.trim() }],
+      logicalOperator: initialData?.logicalOperator || 'AND',
       targetElementSelector: selector,
       action
     });

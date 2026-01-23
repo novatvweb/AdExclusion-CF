@@ -23,21 +23,28 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
   const activeMatches = useMemo(() => {
     return rules.filter(rule => {
       if (!rule.isActive) return false;
-      const actual = mockData[rule.targetKey as keyof TargetingData];
       
-      // Handle boolean for ads_enabled
-      const stringifiedValue = String(actual);
-      
-      if (rule.operator === Operator.EQUALS) {
-        return stringifiedValue === rule.value;
-      } else {
-        if (Array.isArray(actual)) {
-          return actual.some(item => item.includes(rule.value));
-        } else if (typeof actual === 'string') {
-          return actual.includes(rule.value);
+      // Fix: Handle multiple conditions and logical operator by iterating through rule.conditions (line 26, 31, 32, 35, 37 errors fix)
+      const results = (rule.conditions || []).map(cond => {
+        const actual = mockData[cond.targetKey as keyof TargetingData];
+        const stringifiedValue = String(actual || '').toLowerCase().trim();
+        const expectedValue = (cond.value || '').toLowerCase().trim();
+        
+        if (cond.operator === Operator.EQUALS) {
+          return stringifiedValue === expectedValue;
+        } else if (cond.operator === Operator.CONTAINS) {
+          if (Array.isArray(actual)) {
+            return actual.some(item => String(item).toLowerCase().includes(expectedValue));
+          } else if (typeof actual === 'string') {
+            return stringifiedValue.includes(expectedValue);
+          }
         }
-      }
-      return false;
+        return false;
+      });
+
+      // Handle logic operator if conditions exist
+      if (results.length === 0) return false;
+      return rule.logicalOperator === 'OR' ? results.some(r => r) : results.every(r => r);
     });
   }, [rules, mockData]);
 
