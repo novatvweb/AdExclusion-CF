@@ -253,14 +253,7 @@ const App = () => {
               </div>
               <div className="md:col-span-3">
                 <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">CSS Selektor</label>
-                <div className="flex gap-4">
-                  <input type="text" value={editingRule.targetElementSelector} onChange={e => setEditingRule({...editingRule, targetElementSelector: e.target.value})} className="flex-1 p-4 bg-slate-50 rounded-2xl font-mono text-xs" placeholder=".klasa ili #id" />
-                  <div className="flex gap-2">
-                    {DEFAULT_SELECTORS.map(ds => (
-                      <button key={ds.value} onClick={() => setEditingRule({...editingRule, targetElementSelector: ds.value})} className="px-3 py-1 bg-slate-100 rounded-lg text-[9px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-colors">{ds.label}</button>
-                    ))}
-                  </div>
-                </div>
+                <input type="text" value={editingRule.targetElementSelector} onChange={e => setEditingRule({...editingRule, targetElementSelector: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-mono text-xs outline-none focus:ring-2 focus:ring-indigo-500" placeholder=".klasa ili #id" />
               </div>
             </div>
             <div className="flex justify-end gap-4 mt-10 pt-8 border-t border-slate-50">

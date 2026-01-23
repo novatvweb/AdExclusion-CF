@@ -22,7 +22,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       "Content-Type": "application/javascript; charset=utf-8",
       "Cache-Control": "public, max-age=60, s-maxage=60",
       "X-Content-Type-Options": "nosniff",
-      "Access-Control-Allow-Origin": "*",
     },
   });
 };
