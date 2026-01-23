@@ -1,8 +1,9 @@
-
 export enum Operator {
   EQUALS = 'equals',
   CONTAINS = 'contains'
 }
+
+export type ActionType = 'hide' | 'show';
 
 export type TargetingKey = 
   | 'site' 
@@ -35,7 +36,8 @@ export interface BlacklistRule {
   targetKey: TargetingKey;
   operator: Operator;
   value: string;
-  targetElementSelector: string; // The CSS selector to hide (e.g. .general-sponsor-bg)
+  targetElementSelector: string;
+  action: ActionType; // 'hide' ili 'show'
   isActive: boolean;
   createdAt: number;
 }

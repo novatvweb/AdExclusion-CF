@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Operator, BlacklistRule, TargetingKey } from '../types';
+import { Operator, BlacklistRule, TargetingKey, ActionType } from '../types';
 import { TARGETING_KEYS, DEFAULT_SELECTORS } from '../constants';
 
 interface RuleFormProps {
@@ -14,6 +14,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   const [operator, setOperator] = useState<Operator>(initialData?.operator || Operator.EQUALS);
   const [value, setValue] = useState(initialData?.value || '');
   const [selector, setSelector] = useState(initialData?.targetElementSelector || '');
+  const [action, setAction] = useState<ActionType>(initialData?.action || 'hide');
 
   useEffect(() => {
     if (initialData) {
@@ -22,6 +23,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
       if (initialData.operator) setOperator(initialData.operator);
       if (initialData.value) setValue(initialData.value);
       if (initialData.targetElementSelector) setSelector(initialData.targetElementSelector);
+      if (initialData.action) setAction(initialData.action);
     }
   }, [initialData]);
 
@@ -34,6 +36,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
       operator,
       value: value.trim(),
       targetElementSelector: selector,
+      action
     });
   };
 
@@ -93,7 +96,21 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
         </div>
 
         <div className="col-span-full">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">5. Što točno sakriti na stranici?</label>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">5. Akcija</label>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" checked={action === 'hide'} onChange={() => setAction('hide')} className="w-4 h-4 text-indigo-600" />
+              <span className="text-sm font-semibold text-slate-700 uppercase tracking-widest">Sakrij</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" checked={action === 'show'} onChange={() => setAction('show')} className="w-4 h-4 text-indigo-600" />
+              <span className="text-sm font-semibold text-slate-700 uppercase tracking-widest">Prikaži</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="col-span-full">
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">6. Što točno sakriti na stranici?</label>
           <input
             type="text"
             required
@@ -117,7 +134,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
           type="submit"
           className="px-10 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all active:scale-95"
         >
-          Dodaj Pravilo
+          Spremi Pravilo
         </button>
       </div>
     </form>

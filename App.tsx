@@ -11,13 +11,6 @@ const TARGETING_KEYS = [
   { label: 'AB Test', value: 'ab_test' }
 ];
 
-const DEFAULT_SELECTORS = [
-  { label: 'Branding (Background)', value: '.bg-branding-main' },
-  { label: 'Glavni Promo Box', value: '#promo-box-general' },
-  { label: 'Sponzor u dnu (Footer)', value: '.footer-sponsor-logo' },
-  { label: 'Bočni Banner (Sky)', value: '.sky-ads-wrapper' }
-];
-
 const LoginForm = ({ onLogin }) => {
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
@@ -108,8 +101,11 @@ const Sandbox = ({ rules }) => {
       <div className="space-y-3">
         {activeMatches.length > 0 ? activeMatches.map(m => (
           <div key={m.id} className="flex items-center justify-between p-4 bg-green-50 rounded-2xl border border-green-100 animate-in slide-in-from-left-2">
-            <span className="text-xs font-black text-green-700 uppercase">✅ MATCH: {m.name}</span>
-            <code className="text-[10px] bg-white px-2 py-1 rounded text-green-600 border border-green-100">Hide: {m.targetElementSelector}</code>
+            <div className="flex flex-col">
+              <span className="text-xs font-black text-green-700 uppercase">✅ MATCH: {m.name}</span>
+              <span className="text-[10px] font-bold text-green-600 uppercase">Akcija: {m.action === 'show' ? 'PRIKAŽI' : 'SAKRIJ'}</span>
+            </div>
+            <code className="text-[10px] bg-white px-2 py-1 rounded text-green-600 border border-green-100">{m.targetElementSelector}</code>
           </div>
         )) : (
           <div className="p-8 border-2 border-dashed border-slate-100 rounded-2xl text-center text-xs text-slate-300 font-bold uppercase tracking-widest italic">Nema aktivnih okidača na ovoj stranici</div>
@@ -150,16 +146,25 @@ const App = () => {
   const publish = async () => {
     setIsPublishing(true);
     const activeRules = rules.filter(r => r.isActive).map(r => ({
-      key: r.targetKey, op: r.operator, val: r.value, sel: r.targetElementSelector
+      key: r.targetKey, op: r.operator, val: r.value, sel: r.targetElementSelector, act: r.action || 'hide'
     }));
     const script = `/** AdExclusion Live Engine | Generated: ${new Date().toISOString()} */
 (function(){
   const rules = ${JSON.stringify(activeRules)};
   const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
   if (!targeting || !rules.length) return;
-  const injectStyle = (sel) => {
+  const injectStyle = (sel, action) => {
     const s = document.createElement('style');
-    s.innerHTML = sel + ' { display: none !important; visibility: hidden !important; pointer-events: none !important; height: 0 !important; margin: 0 !important; padding: 0 !important; }';
+    const displayVal = action === 'show' ? 'block' : 'none';
+    const visibilityVal = action === 'show' ? 'visible' : 'hidden';
+    const pointerEvents = action === 'show' ? 'auto' : 'none';
+    
+    s.innerHTML = sel + ' { ' +
+      'display: ' + displayVal + ' !important; ' +
+      'visibility: ' + visibilityVal + ' !important; ' +
+      'pointer-events: ' + pointerEvents + ' !important; ' +
+      (action === 'hide' ? 'height: 0 !important; margin: 0 !important; padding: 0 !important;' : '') +
+    ' }';
     document.head.appendChild(s);
   };
   rules.forEach(rule => {
@@ -171,7 +176,7 @@ const App = () => {
       const actStr = Array.isArray(actual) ? actual.join(' ') : String(actual);
       match = actStr.toLowerCase().includes(rule.val.toLowerCase());
     }
-    if (match) injectStyle(rule.sel);
+    if (match) injectStyle(rule.sel, rule.act);
   });
 })();`;
     try {
@@ -201,7 +206,7 @@ const App = () => {
   };
 
   const handleEdit = (rule) => {
-    setEditingRule(rule);
+    setEditingRule({ ...rule, action: rule.action || 'hide' });
     setIsAdding(true);
   };
 
@@ -257,7 +262,7 @@ const App = () => {
             {isPublishing ? 'Sinkronizacija...' : '🚀 Objavi na Edge'}
           </button>
           <button 
-            onClick={() => { setEditingRule({ id: Math.random().toString(), name: '', targetKey: 'section', operator: 'equals', value: '', targetElementSelector: '', isActive: true }); setIsAdding(true); }} 
+            onClick={() => { setEditingRule({ id: Math.random().toString(), name: '', targetKey: 'section', operator: 'equals', value: '', targetElementSelector: '', action: 'hide', isActive: true }); setIsAdding(true); }} 
             className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-4 rounded-[2px] font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
           >
             + Novo Pravilo
@@ -292,9 +297,26 @@ const App = () => {
                 <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Vrijednost</label>
                 <input type="text" value={editingRule.value} onChange={e => setEditingRule({...editingRule, value: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold" placeholder="npr. nogomet" />
               </div>
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
                 <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">CSS Selektor</label>
                 <input type="text" value={editingRule.targetElementSelector} onChange={e => setEditingRule({...editingRule, targetElementSelector: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-mono text-xs outline-none focus:ring-2 focus:ring-indigo-500" placeholder=".klasa ili #id" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Akcija</label>
+                <div className="flex gap-2 p-1 bg-slate-50 rounded-2xl h-[58px]">
+                  <button 
+                    onClick={() => setEditingRule({...editingRule, action: 'hide'})}
+                    className={`flex-1 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${editingRule.action === 'hide' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-100'}`}
+                  >
+                    Sakrij
+                  </button>
+                  <button 
+                    onClick={() => setEditingRule({...editingRule, action: 'show'})}
+                    className={`flex-1 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${editingRule.action === 'show' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-100'}`}
+                  >
+                    Prikaži
+                  </button>
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-4 mt-10 pt-8 border-t border-slate-50">
@@ -310,12 +332,13 @@ const App = () => {
                 <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
                 <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Kampanja</th>
                 <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Pravilo</th>
+                <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Akcija</th>
                 <th className="px-10 py-6 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Akcije</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rules.length === 0 ? (
-                <tr><td colSpan={4} className="px-10 py-20 text-center text-slate-300 italic font-bold uppercase tracking-widest">Nema aktivnih izuzetaka</td></tr>
+                <tr><td colSpan={5} className="px-10 py-20 text-center text-slate-300 italic font-bold uppercase tracking-widest">Nema aktivnih izuzetaka</td></tr>
               ) : rules.map(rule => (
                 <tr key={rule.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-10 py-8">
@@ -327,6 +350,11 @@ const App = () => {
                   <td className="px-10 py-8">
                     <span className="text-[9px] font-black uppercase bg-slate-100 px-2 py-1 rounded text-slate-500 mr-2">{rule.targetKey}</span>
                     <span className="text-[10px] font-bold text-indigo-600">"{rule.value}"</span>
+                  </td>
+                  <td className="px-10 py-8">
+                    <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${rule.action === 'show' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}>
+                      {rule.action === 'show' ? 'PRIKAŽI' : 'SAKRIJ'}
+                    </span>
                   </td>
                   <td className="px-10 py-8 text-right">
                     <div className="flex justify-end gap-2">

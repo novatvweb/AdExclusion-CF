@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BlacklistRule, Operator } from '../types';
 import { TARGETING_KEYS } from '../constants';
@@ -32,6 +31,7 @@ export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle })
             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Kampanja</th>
             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Pravilo</th>
+            <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Akcija</th>
             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Target Element</th>
             <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Akcije</th>
           </tr>
@@ -59,6 +59,11 @@ export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle })
                     <span className="text-sm text-slate-400">{rule.operator === Operator.EQUALS ? '==' : 'sadrži'}</span>
                     <span className="text-sm font-medium text-indigo-600">"{rule.value}"</span>
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${rule.action === 'show' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-50 text-slate-500'}`}>
+                    {rule.action === 'show' ? 'Prikaži' : 'Sakrij'}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <code className="px-2 py-1 bg-amber-50 text-amber-700 rounded text-xs border border-amber-100">
