@@ -172,7 +172,10 @@ const App = () => {
       act: r.action || 'hide'
     }));
 
-    const script = `/** AdExclusion Live Engine | Generated: ${new Date().toISOString()} */
+    // Ako nema aktivnih pravila, spremi samo komentar
+    const script = activeRules.length === 0 
+      ? `/* AdExclusion: No rules found */`
+      : `/** AdExclusion Live Engine | Generated: ${new Date().toISOString()} */
 (function(){
   const rules = ${JSON.stringify(activeRules)};
   const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
