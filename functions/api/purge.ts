@@ -10,7 +10,7 @@ type PagesFunction<Env = any> = (context: {
   [key: string]: any;
 }) => Response | Promise<Response>;
 
-// Assume standard env variables are provided via CF Dashboard
+// Assume standard env variables are provided via CF Dashboard as Secrets
 interface Env {
   CF_API_TOKEN?: string;
   CF_ZONE_ID?: string;
@@ -22,10 +22,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const zoneId = context.env.CF_ZONE_ID;
   const targetUrl = "https://adexclusion.dnevnik.hr/exclusions/sponsorship_exclusions.js";
 
-  // If credentials aren't set, just return success as a placeholder
+  // Check if variables are missing
   if (!token || !zoneId) {
-    console.warn("Purge skipped: CF_API_TOKEN or CF_ZONE_ID not configured.");
-    return new Response(JSON.stringify({ success: true, message: "Purge skipped - missing env" }), {
+    const errorMsg = `Purge skipped: ${!token ? 'CF_API_TOKEN' : ''} ${!zoneId ? 'CF_ZONE_ID' : ''} not configured.`;
+    console.warn(errorMsg);
+    return new Response(JSON.stringify({ success: false, message: errorMsg }), {
+      status: 400,
       headers: { "Content-Type": "application/json" }
     });
   }
@@ -41,6 +43,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         files: [targetUrl]
       })
     });
+
+    if (!cfResponse.ok) {
+        const errorText = await cfResponse.text();
+        return new Response(JSON.stringify({ 
+            success: false, 
+            message: `Cloudflare API returned error status: ${cfResponse.status}`,
+            details: errorText
+        }), {
+            status: cfResponse.status,
+            headers: { "Content-Type": "application/json" }
+        });
+    }
 
     const result = await cfResponse.json();
     return new Response(JSON.stringify(result), {
