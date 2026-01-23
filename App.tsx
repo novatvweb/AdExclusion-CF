@@ -175,14 +175,45 @@ const App = () => {
   });
 })();`;
     try {
+      // Sync rules and script
       await fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rules, script })
       });
-      alert('🚀 USPJEH! Pravila su sinkronizirana s Edge mrežom.');
+      
+      // Cache Invalidation Call
+      try {
+        await fetch('/api/purge', { method: 'POST' });
+      } catch (purgeErr) {
+        console.error("Purge Error (Non-blocking)", purgeErr);
+      }
+
+      alert('🚀 USPJEH! Pravila su sinkronizirana s Edge mrežom i cache je invalidiran.');
     } catch (e) { alert('Greška pri objavljivanju.'); }
     finally { setIsPublishing(false); }
+  };
+
+  const handleEdit = (rule) => {
+    setEditingRule(rule);
+    setIsAdding(true);
+  };
+
+  const handleSubmit = () => {
+    if (!editingRule.name || !editingRule.value || !editingRule.targetElementSelector) return;
+    
+    let newRules;
+    const exists = rules.find(r => r.id === editingRule.id);
+    
+    if (exists) {
+      newRules = rules.map(r => r.id === editingRule.id ? editingRule : r);
+    } else {
+      newRules = [editingRule, ...rules];
+    }
+    
+    saveToKV(newRules);
+    setIsAdding(false);
+    setEditingRule(null);
   };
 
   if (!isAuthenticated) return <LoginForm onLogin={() => setIsAuthenticated(true)} />;
@@ -228,7 +259,9 @@ const App = () => {
       <main className="flex-1 max-w-6xl w-full mx-auto py-16 px-6">
         {isAdding && editingRule && (
           <div className="mb-12 bg-white p-10 rounded-[2.5rem] shadow-2xl border border-indigo-100 animate-in fade-in slide-in-from-top-4">
-            <h2 className="text-xl font-black uppercase tracking-tight mb-8">Konfiguracija Pravila</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight mb-8">
+              {rules.some(r => r.id === editingRule.id) ? 'Uredi Pravilo' : 'Konfiguracija Pravila'}
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="md:col-span-3">
                 <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Naziv Kampanje</label>
@@ -257,8 +290,8 @@ const App = () => {
               </div>
             </div>
             <div className="flex justify-end gap-4 mt-10 pt-8 border-t border-slate-50">
-              <button onClick={() => setIsAdding(false)} className="px-8 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Odustani</button>
-              <button onClick={() => { saveToKV([editingRule, ...rules]); setIsAdding(false); }} className="bg-indigo-600 text-white px-10 py-4 rounded-[2px] font-black text-xs uppercase tracking-widest shadow-xl">Spremi Pravilo</button>
+              <button onClick={() => { setIsAdding(false); setEditingRule(null); }} className="px-8 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Odustani</button>
+              <button onClick={handleSubmit} className="bg-indigo-600 text-white px-10 py-4 rounded-[2px] font-black text-xs uppercase tracking-widest shadow-xl">Spremi Pravilo</button>
             </div>
           </div>
         )}
@@ -288,9 +321,14 @@ const App = () => {
                     <span className="text-[10px] font-bold text-indigo-600">"{rule.value}"</span>
                   </td>
                   <td className="px-10 py-8 text-right">
-                    <button onClick={() => saveToKV(rules.filter(r => r.id !== rule.id))} className="text-red-200 hover:text-red-500 transition-colors p-2">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => handleEdit(rule)} className="text-slate-300 hover:text-indigo-600 transition-colors p-2">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M18.364 5.636a2 2 0 112.828 2.828l-7.071 7.071-4.242 1.414 1.414-4.242 7.071-7.071z" /></svg>
+                      </button>
+                      <button onClick={() => saveToKV(rules.filter(r => r.id !== rule.id))} className="text-red-200 hover:text-red-500 transition-colors p-2">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
