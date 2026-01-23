@@ -164,7 +164,8 @@ const App = () => {
 
   const publish = async () => {
     setIsPublishing(true);
-    const activeRules = rules.filter(r => r.isActive).map(r => ({
+    // Strogo filtriranje samo onih koji su isActive: true
+    const activeRules = rules.filter(r => !!r.isActive).map(r => ({
       name: r.name,
       conds: r.conditions,
       lOp: r.logicalOperator,
@@ -172,9 +173,11 @@ const App = () => {
       act: r.action || 'hide'
     }));
 
+    const commentOnly = `/* AdExclusion: No rules found */`;
+
     // Ako nema aktivnih pravila, spremi samo komentar
     const script = activeRules.length === 0 
-      ? `/* AdExclusion: No rules found */`
+      ? commentOnly
       : `/** AdExclusion Live Engine | Generated: ${new Date().toISOString()} */
 (function(){
   const rules = ${JSON.stringify(activeRules)};
