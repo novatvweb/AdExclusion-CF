@@ -1,24 +1,30 @@
-
 # AdExclusion Enterprise 🚀
 
 **AdExclusion Enterprise** je optimiziran za Cloudflare Pages Git-integritaciju.
 
-## ✅ Rješenje za "Authentication Error [code: 10000]"
+## ✅ Cloudflare Dashboard Konfiguracija
 
-Greška se pojavljivala jer je sustav pokušavao izvršiti `wrangler deploy` unutar CI/CD okruženja koje je već u procesu deploymenta. 
+Kako bi Build i Purge radili ispravno, potrebno je podesiti sljedeće u Cloudflare Dashboardu:
 
-### Ispravne postavke Dashboarda:
+### 1. Bindings (Settings > Functions)
+- **KV Namespace Binding**: 
+  - Variable name: `AD_EXCLUSION_KV`
+  - KV namespace: Odaberite vaš namespace.
+  - *Napomena*: `wrangler.toml` mora sadržavati ID ovog namespace-a kako bi build prošao faza validacije.
 
-S obzirom na polja sa slike, unesite točno ovo:
+### 2. Variables and Secrets (Settings > Environment variables)
+Dodajte ove varijable pod **Secrets** (encrypted) za Production i Preview okruženja:
 
-1. **Build command**: `npm run build`
-2. **Build output directory**: `.`
-3. **Deploy command**: `npm run deploy` (Ovo će sada samo ispisati poruku i dopustiti Cloudflareu da završi svoj nativni proces)
+| Variable Name | Description |
+| :--- | :--- |
+| `CF_API_TOKEN` | API Token sa dozvolom `Zone.Cache Purge` |
+| `CF_ZONE_ID` | ID Zone vaše domene |
+| `CF_PURGE_URL` | Puni URL skripte (npr. `https://adexclusion.dnevnik.hr/exclusions/sponsorship_exclusions.js`) |
 
 ### Arhitektura
 - **Static Assets**: Sve datoteke iz roota (`index.html`, `App.tsx`, itd.) se serviraju automatski.
 - **Functions**: Mapa `/functions` se automatski pretvara u Edge rute.
-- **KV Binding**: Provjerite u `Settings > Functions` da je `AD_EXCLUSION_KV` povezan s ispravnim namespaceom.
+- **Edge Purge**: Prilikom svake objave, sustav šalje zahtjev Cloudflare API-ju da očisti cache za URL definiran u `CF_PURGE_URL`.
 
 ---
 *Senior Systems Architect*
