@@ -3,6 +3,5 @@ name = "adex-manager"
 pages_build_output_dir = "."
 
 [[kv_namespaces]]
-binding = "AD_EXCLUSION_KV"
-# ID se više ne definira ovdje radi sigurnosti (prebačeno u Cloudflare Dashboard).
-# Potrebno ga je ručno povezati u sučelju: Settings > Functions > KV namespace bindings
+binding = "AD_EXCLUS_KV"
+id = "a8017b5da883497c93f42d18b77325a3"

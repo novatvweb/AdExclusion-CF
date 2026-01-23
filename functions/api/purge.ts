@@ -14,17 +14,23 @@ type PagesFunction<Env = any> = (context: {
 interface Env {
   CF_API_TOKEN?: string;
   CF_ZONE_ID?: string;
+  CF_PURGE_URL?: string;
   AD_EXCLUSION_KV: KVNamespace;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const token = context.env.CF_API_TOKEN;
   const zoneId = context.env.CF_ZONE_ID;
-  const targetUrl = "https://adexclusion.dnevnik.hr/exclusions/sponsorship_exclusions.js";
+  const targetUrl = context.env.CF_PURGE_URL;
 
   // Check if variables are missing
-  if (!token || !zoneId) {
-    const errorMsg = `Purge skipped: ${!token ? 'CF_API_TOKEN' : ''} ${!zoneId ? 'CF_ZONE_ID' : ''} not configured.`;
+  if (!token || !zoneId || !targetUrl) {
+    const missing = [];
+    if (!token) missing.push('CF_API_TOKEN');
+    if (!zoneId) missing.push('CF_ZONE_ID');
+    if (!targetUrl) missing.push('CF_PURGE_URL');
+    
+    const errorMsg = `Purge skipped: Missing ${missing.join(', ')} in Dashboard Secrets.`;
     console.warn(errorMsg);
     return new Response(JSON.stringify({ success: false, message: errorMsg }), {
       status: 400,
