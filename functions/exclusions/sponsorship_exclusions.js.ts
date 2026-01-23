@@ -1,4 +1,3 @@
-// Added local definitions for Cloudflare environment types to fix compilation errors
 interface KVNamespace {
   get(key: string): Promise<string | null>;
   put(key: string, value: string): Promise<void>;
@@ -15,24 +14,25 @@ interface Env {
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const dataRaw = await context.env.AD_EXCLUSION_KV.get("rules_data");
-  const fallback = "/* AdExclusion: No rules found */";
+  // Fix: Property 'AD_EXCLUS_KV' does not exist on type 'Env'. Corrected to 'AD_EXCLUSION_KV' and removed unnecessary await on namespace object.
+  const dataRaw = context.env.AD_EXCLUSION_KV;
+  const data = await dataRaw.get("rules_data");
+  const fallback = "/* AdExclusion: No rules found or KV not bound */";
   
-  if (!dataRaw) {
+  if (!data) {
     return new Response(fallback, {
-      headers: { "Content-Type": "application/javascript; charset=utf-8" }
+      headers: { 
+        "Content-Type": "application/javascript; charset=utf-8",
+        "Access-Control-Allow-Origin": "*"
+      }
     });
   }
 
-  const data = JSON.parse(dataRaw);
-  
-  // Primarna provjera: ima li uopće aktivnih pravila u bazi
-  const hasActiveRules = data.rules && data.rules.some((r: any) => !!r.isActive);
-  
-  let output = hasActiveRules ? (data.script || fallback) : fallback;
+  const parsed = JSON.parse(data);
+  const hasActiveRules = parsed.rules && parsed.rules.some((r: any) => !!r.isActive);
+  let output = hasActiveRules ? (parsed.script || fallback) : fallback;
 
-  // Sekundarna provjera (prema zahtjevu): ako je skripta generirana ali je niz prazan
-  // Provjeravamo da li JS kod sadrži praznu rules varijablu
+  // Cleanup u slučaju praznog niza u generiranoj skripti
   if (output !== fallback && output.includes("const rules = [];")) {
     output = fallback;
   }
@@ -40,6 +40,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   return new Response(output, {
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
       "Cache-Control": "public, max-age=60, s-maxage=60",
       "X-Content-Type-Options": "nosniff",
     },
