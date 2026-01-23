@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Operator, BlacklistRule, TargetingKey } from '../types';
 import { TARGETING_KEYS, DEFAULT_SELECTORS } from '../constants';
@@ -14,7 +13,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   const [targetKey, setTargetKey] = useState<TargetingKey>(initialData?.targetKey || 'section');
   const [operator, setOperator] = useState<Operator>(initialData?.operator || Operator.EQUALS);
   const [value, setValue] = useState(initialData?.value || '');
-  const [selector, setSelector] = useState(initialData?.targetElementSelector || DEFAULT_SELECTORS[0].value);
+  const [selector, setSelector] = useState(initialData?.targetElementSelector || '');
 
   useEffect(() => {
     if (initialData) {
@@ -28,7 +27,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !value) return;
+    if (!name || !value || !selector) return;
     onSubmit({
       name,
       targetKey,
@@ -95,28 +94,14 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
 
         <div className="col-span-full">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">5. Što točno sakriti na stranici?</label>
-          <div className="flex gap-3">
-            <select
-               value={DEFAULT_SELECTORS.find(s => s.value === selector) ? selector : 'custom'}
-               onChange={(e) => setSelector(e.target.value === 'custom' ? '' : e.target.value)}
-               className="w-1/2 px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm bg-white"
-            >
-                {DEFAULT_SELECTORS.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-                <option value="custom">Nešto drugo (custom selektor)...</option>
-            </select>
-            {!DEFAULT_SELECTORS.find(s => s.value === selector) && (
-                 <input
-                    type="text"
-                    required
-                    value={selector}
-                    className="w-1/2 px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
-                    placeholder=".klasa ili #id elementa"
-                    onChange={(e) => setSelector(e.target.value)}
-                 />
-            )}
-          </div>
+          <input
+            type="text"
+            required
+            value={selector}
+            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
+            placeholder=".klasa ili #id elementa"
+            onChange={(e) => setSelector(e.target.value)}
+          />
         </div>
       </div>
 
