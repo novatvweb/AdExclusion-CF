@@ -24,6 +24,7 @@ export interface Condition {
   targetKey: TargetingKey;
   operator: Operator;
   value: string;
+  caseSensitive?: boolean;
 }
 
 export interface TargetingData {

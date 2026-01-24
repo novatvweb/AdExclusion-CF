@@ -19,6 +19,9 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   const [value, setValue] = useState(
     initialData?.conditions?.[0]?.value || (initialData as any)?.value || ''
   );
+  const [caseSensitive, setCaseSensitive] = useState(
+    initialData?.conditions?.[0]?.caseSensitive || false
+  );
   const [selector, setSelector] = useState(initialData?.targetElementSelector || '');
   const [action, setAction] = useState<ActionType>(initialData?.action || 'hide');
   const [respectAdsEnabled, setRespectAdsEnabled] = useState(initialData?.respectAdsEnabled ?? true);
@@ -30,6 +33,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
         setTargetKey(initialData.conditions[0].targetKey);
         setOperator(initialData.conditions[0].operator);
         setValue(initialData.conditions[0].value);
+        setCaseSensitive(initialData.conditions[0].caseSensitive || false);
       } else if ((initialData as any)?.targetKey) {
         setTargetKey((initialData as any).targetKey);
         if ((initialData as any).operator) setOperator((initialData as any).operator);
@@ -47,7 +51,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
     if (!name || !value || !selector) return;
     onSubmit({
       name,
-      conditions: [{ targetKey, operator, value: value.trim() }],
+      conditions: [{ targetKey, operator, value: value.trim(), caseSensitive }],
       logicalOperator: initialData?.logicalOperator || 'AND',
       targetElementSelector: selector,
       action,
@@ -111,16 +115,26 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
 
         <div className="col-span-full">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">4. Koja vrijednost aktivira pravilo?</label>
-          <input
-            type="text"
-            required
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
-            placeholder="npr. nogomet"
-          />
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              required
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              className="w-full px-4 py-3 pr-12 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
+              placeholder="Pojmove odvojite zarezom (npr. sport, vijesti)"
+            />
+            <button 
+              type="button"
+              onClick={() => setCaseSensitive(!caseSensitive)}
+              title="Case Sensitive"
+              className={`absolute right-2 w-8 h-8 flex items-center justify-center rounded-lg text-[11px] font-black transition-all ${caseSensitive ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-300 hover:text-slate-400'}`}
+            >
+              Aa
+            </button>
+          </div>
           <p className="mt-2 text-[11px] text-slate-400 italic">
-            Napomena: Ako je kategorija "Keywords", koristite "Sadrži ovaj pojam".
+            Savjet: Koristite zarez za više pojmova. Kod negacije (!=), blokirat će sve navedeno.
           </p>
         </div>
 
