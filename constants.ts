@@ -1,5 +1,4 @@
-
-import { TargetingKey } from './types';
+import { TargetingKey, Operator } from './types';
 
 export const TARGETING_KEYS: { label: string; value: TargetingKey }[] = [
   { label: 'Portal (Site)', value: 'site' },
@@ -9,14 +8,13 @@ export const TARGETING_KEYS: { label: string; value: TargetingKey }[] = [
   { label: 'Vrsta stranice (Page Type)', value: 'page_type' },
   { label: 'ID Članka (Content ID)', value: 'content_id' },
   { label: 'Puna adresa (URL)', value: 'description_url' },
-  { label: 'Oglasi omogućeni?', value: 'ads_enabled' },
-  { label: 'Domena', value: 'domain' },
-  { label: 'AB Test Grupa', value: 'ab_test' }
+  { label: 'Domena (Domain)', value: 'domain' },
+  { label: 'AB Test', value: 'ab_test' }
 ];
 
-export const DEFAULT_SELECTORS = [
-  { label: 'Branding (Background)', value: '.bg-branding-main' },
-  { label: 'Glavni Promo Box', value: '#promo-box-general' },
-  { label: 'Sponzor u dnu (Footer)', value: '.footer-sponsor-logo' },
-  { label: 'Bočni Banner (Sky)', value: '.sky-ads-wrapper' }
+export const OPERATORS = [
+  { label: 'Jednako (==)', value: Operator.EQUALS },
+  { label: 'NIJE Jednako (!=)', value: Operator.NOT_EQUALS },
+  { label: 'Sadrži', value: Operator.CONTAINS },
+  { label: 'NE Sadrži', value: Operator.NOT_CONTAINS }
 ];
