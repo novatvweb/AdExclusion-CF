@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { BlacklistRule } from '../types';
 
-// Defined missing props interface for IntegrationPreview component
 interface IntegrationPreviewProps {
   rules: BlacklistRule[];
 }
@@ -66,11 +65,11 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex p-1 bg-slate-100 rounded-lg">
+    <div className="w-full space-y-4">
+      <div className="flex p-1 bg-slate-100 rounded-lg max-w-xs">
         <button
           onClick={() => setActiveTab('json')}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+          className={`flex-1 py-1 text-[10px] font-black uppercase rounded transition-all ${
             activeTab === 'json' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
           }`}
         >
@@ -78,7 +77,7 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
         </button>
         <button
           onClick={() => setActiveTab('script')}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+          className={`flex-1 py-1 text-[10px] font-black uppercase rounded transition-all ${
             activeTab === 'script' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
           }`}
         >
@@ -86,13 +85,14 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
         </button>
       </div>
 
-      <div className="relative group">
-        <pre className="bg-slate-900 text-indigo-300 p-4 rounded-lg text-[11px] font-mono h-48 overflow-y-auto custom-scrollbar">
+      <div className="relative group w-full">
+        {/* Visina povećana s h-48 na h-[500px] (~3x više) */}
+        <pre className="bg-slate-900 text-indigo-300 p-6 rounded-2xl text-[10px] font-mono h-[550px] overflow-y-auto custom-scrollbar border border-slate-800 w-full">
           <code>{activeTab === 'json' ? configJson : scriptCode}</code>
         </pre>
         <button
           onClick={() => copyToClipboard(activeTab === 'json' ? configJson : scriptCode)}
-          className="absolute top-2 right-2 p-2 bg-slate-800 text-slate-300 rounded hover:text-white hover:bg-slate-700 transition-all opacity-0 group-hover:opacity-100"
+          className="absolute top-4 right-6 p-2 bg-slate-800 text-slate-300 rounded hover:text-white hover:bg-slate-700 transition-all opacity-0 group-hover:opacity-100"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m-3 3h4" />

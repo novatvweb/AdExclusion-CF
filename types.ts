@@ -1,7 +1,7 @@
 export enum Operator {
   EQUALS = 'equals',
-  CONTAINS = 'contains',
   NOT_EQUALS = 'not_equals',
+  CONTAINS = 'contains',
   NOT_CONTAINS = 'not_contains'
 }
 
@@ -50,12 +50,4 @@ export interface BlacklistRule {
   isActive: boolean;
   respectAdsEnabled: boolean;
   createdAt: number;
-}
-
-export interface PageMeta {
-  third_party_apps: {
-    ntAds: {
-      targeting: TargetingData;
-    };
-  };
 }

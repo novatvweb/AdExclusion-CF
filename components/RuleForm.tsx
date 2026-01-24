@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Operator, BlacklistRule, TargetingKey, ActionType } from '../types';
-import { TARGETING_KEYS, DEFAULT_SELECTORS } from '../constants';
+import { Operator, BlacklistRule, TargetingKey, ActionType, Condition, LogicalOperator } from '../types';
+import { TARGETING_KEYS, OPERATORS } from '../constants';
 
 interface RuleFormProps {
   onSubmit: (rule: Omit<BlacklistRule, 'id' | 'createdAt' | 'isActive'>) => void;
@@ -10,49 +10,40 @@ interface RuleFormProps {
 
 export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialData }) => {
   const [name, setName] = useState(initialData?.name || '');
-  const [targetKey, setTargetKey] = useState<TargetingKey>(
-    initialData?.conditions?.[0]?.targetKey || (initialData as any)?.targetKey || 'section'
-  );
-  const [operator, setOperator] = useState<Operator>(
-    initialData?.conditions?.[0]?.operator || (initialData as any)?.operator || Operator.EQUALS
-  );
-  const [value, setValue] = useState(
-    initialData?.conditions?.[0]?.value || (initialData as any)?.value || ''
-  );
-  const [caseSensitive, setCaseSensitive] = useState(
-    initialData?.conditions?.[0]?.caseSensitive || false
+  const [logicalOperator, setLogicalOperator] = useState<LogicalOperator>(initialData?.logicalOperator || 'AND');
+  const [conditions, setConditions] = useState<Condition[]>(
+    initialData?.conditions || [{ targetKey: 'keywords', operator: Operator.CONTAINS, value: '', caseSensitive: false }]
   );
   const [selector, setSelector] = useState(initialData?.targetElementSelector || '');
   const [action, setAction] = useState<ActionType>(initialData?.action || 'hide');
   const [respectAdsEnabled, setRespectAdsEnabled] = useState(initialData?.respectAdsEnabled ?? true);
 
-  useEffect(() => {
-    if (initialData) {
-      if (initialData.name) setName(initialData.name);
-      if (initialData.conditions && initialData.conditions[0]) {
-        setTargetKey(initialData.conditions[0].targetKey);
-        setOperator(initialData.conditions[0].operator);
-        setValue(initialData.conditions[0].value);
-        setCaseSensitive(initialData.conditions[0].caseSensitive || false);
-      } else if ((initialData as any)?.targetKey) {
-        setTargetKey((initialData as any).targetKey);
-        if ((initialData as any).operator) setOperator((initialData as any).operator);
-        if ((initialData as any).value) setValue((initialData as any).value);
-      }
-      
-      if (initialData.targetElementSelector) setSelector(initialData.targetElementSelector);
-      if (initialData.action) setAction(initialData.action);
-      if (initialData.respectAdsEnabled !== undefined) setRespectAdsEnabled(initialData.respectAdsEnabled);
+  const addCondition = () => {
+    setConditions([...conditions, { targetKey: 'section', operator: Operator.EQUALS, value: '', caseSensitive: false }]);
+  };
+
+  const removeCondition = (index: number) => {
+    if (conditions.length > 1) {
+      setConditions(conditions.filter((_, i) => i !== index));
     }
-  }, [initialData]);
+  };
+
+  const updateCondition = (index: number, updates: Partial<Condition>) => {
+    const newConditions = [...conditions];
+    newConditions[index] = { ...newConditions[index], ...updates };
+    setConditions(newConditions);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !value || !selector) return;
+    if (!name || conditions.some(c => !c.value) || !selector) {
+      alert("Molimo popunite sva obavezna polja.");
+      return;
+    }
     onSubmit({
       name,
-      conditions: [{ targetKey, operator, value: value.trim(), caseSensitive }],
-      logicalOperator: initialData?.logicalOperator || 'AND',
+      conditions,
+      logicalOperator,
       targetElementSelector: selector,
       action,
       respectAdsEnabled
@@ -60,124 +51,111 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex justify-between items-center mb-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-        <div>
-          <h4 className="text-xs font-black text-indigo-900 uppercase tracking-widest">Globalni Sigurnosni Filter</h4>
-          <p className="text-[10px] text-indigo-600 font-medium">Poštuj "Ads Enabled" flag s portala (AND logika)</p>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-base font-black uppercase tracking-tight text-slate-800">
+          {initialData?.id ? 'Uredi Pravilo' : 'Novo Pravilo'}
+        </h2>
+        <div className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 flex items-center gap-2">
+          <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest">Poštuj "Ads Enabled"</span>
+          <button 
+            type="button"
+            onClick={() => setRespectAdsEnabled(!respectAdsEnabled)}
+            className={`w-9 h-4.5 rounded-full relative transition-all ${respectAdsEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+          >
+            <div className={`w-3 h-3 bg-white rounded-full absolute top-[3px] transition-all ${respectAdsEnabled ? 'left-5' : 'left-1'}`} />
+          </button>
         </div>
-        <button 
-          type="button"
-          onClick={() => setRespectAdsEnabled(!respectAdsEnabled)}
-          className={`w-12 h-6 rounded-full relative transition-all ${respectAdsEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
-        >
-          <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${respectAdsEnabled ? 'left-7' : 'left-1'}`} />
-        </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <div className="col-span-full">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">1. Naziv kampanje (interni podsjetnik)</label>
-          <input
-            type="text"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
-            placeholder="npr. Hide Heineken on Football"
-          />
-        </div>
+      <div>
+        <label className="block text-[8px] font-black text-slate-400 uppercase mb-1 tracking-widest">Naziv Kampanje</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="npr. Test pravilo"
+          className="w-full bg-slate-50 border border-slate-100 p-2.5 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
 
-        <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">2. Gdje sakriti? (Kategorija)</label>
-          <select
-            value={targetKey}
-            onChange={(e) => setTargetKey(e.target.value as TargetingKey)}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm bg-white"
-          >
-            {TARGETING_KEYS.map(k => (
-              <option key={k.value} value={k.value}>{k.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">3. Tip provjere</label>
-          <select
-            value={operator}
-            onChange={(e) => setOperator(e.target.value as Operator)}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm bg-white"
-          >
-            <option value={Operator.EQUALS}>Je točno (identično)</option>
-            <option value={Operator.CONTAINS}>Sadrži ovaj pojam</option>
-          </select>
-        </div>
-
-        <div className="col-span-full">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">4. Koja vrijednost aktivira pravilo?</label>
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              required
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              className="w-full px-4 py-3 pr-12 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
-              placeholder="Pojmove odvojite zarezom (npr. sport, vijesti)"
-            />
-            <button 
-              type="button"
-              onClick={() => setCaseSensitive(!caseSensitive)}
-              title="Case Sensitive"
-              className={`absolute right-2 w-8 h-8 flex items-center justify-center rounded-lg text-[11px] font-black transition-all ${caseSensitive ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-300 hover:text-slate-400'}`}
-            >
-              Aa
-            </button>
-          </div>
-          <p className="mt-2 text-[11px] text-slate-400 italic">
-            Savjet: Koristite zarez za više pojmova. Kod negacije (!=), blokirat će sve navedeno.
-          </p>
-        </div>
-
-        <div className="col-span-full">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">5. Akcija</label>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="radio" checked={action === 'hide'} onChange={() => setAction('hide')} className="w-4 h-4 text-indigo-600" />
-              <span className="text-sm font-semibold text-slate-700 uppercase tracking-widest">Sakrij</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="radio" checked={action === 'show'} onChange={() => setAction('show')} className="w-4 h-4 text-indigo-600" />
-              <span className="text-sm font-semibold text-slate-700 uppercase tracking-widest">Prikaži</span>
-            </label>
+      <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-4 relative">
+        <div className="flex justify-between items-center mb-4">
+          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Uvjeti Targetiranja</label>
+          <div className="flex bg-white border border-slate-200 rounded-md p-0.5">
+            <button type="button" onClick={() => setLogicalOperator('AND')} className={`px-2 py-0.5 text-[8px] font-black rounded transition-all ${logicalOperator === 'AND' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>AND</button>
+            <button type="button" onClick={() => setLogicalOperator('OR')} className={`px-2 py-0.5 text-[8px] font-black rounded transition-all ${logicalOperator === 'OR' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>OR</button>
           </div>
         </div>
 
-        <div className="col-span-full">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">6. Što točno sakriti na stranici?</label>
+        <div className="space-y-2">
+          {conditions.map((cond, index) => (
+            <div key={index} className="flex gap-2 items-center">
+              <select
+                value={cond.targetKey}
+                onChange={(e) => updateCondition(index, { targetKey: e.target.value as TargetingKey })}
+                className="flex-[1.5] bg-white border border-slate-200 p-2 rounded text-xs font-bold outline-none appearance-none"
+              >
+                {TARGETING_KEYS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
+              </select>
+              <select
+                value={cond.operator}
+                onChange={(e) => updateCondition(index, { operator: e.target.value as Operator })}
+                className="flex-1 bg-white border border-slate-200 p-2 rounded text-xs font-bold text-indigo-600 outline-none appearance-none"
+              >
+                {OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <div className="flex-[2] relative flex items-center">
+                <input
+                  type="text"
+                  value={cond.value}
+                  onChange={(e) => updateCondition(index, { value: e.target.value })}
+                  placeholder="Vrijednost"
+                  className="w-full bg-white border border-slate-200 p-2 pr-8 rounded text-xs font-bold outline-none"
+                />
+                <button type="button" onClick={() => updateCondition(index, { caseSensitive: !cond.caseSensitive })} className={`absolute right-1.5 w-5 h-5 flex items-center justify-center rounded text-[8px] font-black ${cond.caseSensitive ? 'bg-indigo-600 text-white' : 'text-slate-200 bg-slate-50'}`}>Aa</button>
+              </div>
+              <button type="button" onClick={() => removeCondition(index)} className="p-1.5 text-slate-300 hover:text-red-500">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+            </div>
+          ))}
+        </div>
+        <button type="button" onClick={addCondition} className="mt-3 flex items-center gap-1.5 text-[8px] font-black uppercase text-indigo-600 tracking-widest">+ Dodaj Uvjet</button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div className="md:col-span-2">
+          <label className="block text-[8px] font-black text-slate-400 uppercase mb-1 tracking-widest">CSS Selektor</label>
           <input
             type="text"
-            required
             value={selector}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
-            placeholder=".klasa ili #id elementa"
             onChange={(e) => setSelector(e.target.value)}
+            placeholder=".klasa ili #id"
+            className="w-full bg-slate-50 border border-slate-100 p-2.5 rounded-lg text-xs font-bold outline-none"
           />
+        </div>
+        <div>
+          <label className="block text-[8px] font-black text-slate-400 uppercase mb-1 tracking-widest">Akcija</label>
+          <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100 gap-1">
+            <button 
+              type="button" 
+              onClick={() => setAction('hide')} 
+              className={`flex-1 py-1.5 text-[8px] font-black uppercase rounded transition-all ${action === 'hide' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >Sakrij</button>
+            <button 
+              type="button" 
+              onClick={() => setAction('show')} 
+              className={`flex-1 py-1.5 text-[8px] font-black uppercase rounded transition-all ${action === 'show' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >Prikaži</button>
+          </div>
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 pt-8 border-t border-slate-100">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
-        >
-          Odustani
-        </button>
-        <button
-          type="submit"
-          className="px-10 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all active:scale-95"
-        >
-          Spremi Pravilo
+      <div className="flex justify-end items-center gap-4 pt-4 border-t border-slate-50">
+        <button type="button" onClick={onCancel} className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Odustani</button>
+        <button type="submit" className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-black text-[9px] uppercase tracking-widest shadow shadow-indigo-100 hover:bg-indigo-700">
+          {initialData?.id ? 'Spremi Izmjene' : 'Spremi Pravilo'}
         </button>
       </div>
     </form>
