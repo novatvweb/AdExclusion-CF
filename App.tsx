@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { authService } from './services/authService.ts';
 import { dataService } from './services/dataService.ts';
@@ -138,33 +139,52 @@ const App = () => {
   if (loading) return null;
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900">
-      <header className="bg-white border-b border-slate-200 h-16 px-8 flex items-center justify-between sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="bg-[#b71918] text-white p-2 px-4 font-black uppercase text-base italic rounded shadow-sm tracking-tighter select-none">
+    <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900 pb-24 md:pb-0">
+      <header className="bg-white border-b border-slate-200 h-16 px-4 md:px-8 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center gap-2 md:gap-4">
+          <div className="bg-[#b71918] text-white p-1.5 md:p-2 px-3 md:px-4 font-black uppercase text-sm md:text-base italic rounded shadow-sm tracking-tighter select-none">
             DNEVNIK.hr
           </div>
-          <div className="h-4 w-px bg-slate-200"></div>
-          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 select-none">Ad Exclusion Engine</span>
+          <div className="hidden md:block h-4 w-px bg-slate-200"></div>
+          <span className="hidden md:block text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 select-none">Ad Exclusion Engine</span>
         </div>
         
-        <div className="flex items-center gap-3">
-          <button onClick={publish} disabled={isPublishing} className="bg-emerald-600 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-emerald-700 disabled:opacity-50 rounded-lg flex items-center gap-2 shadow-sm">
-            🚀 {isPublishing ? 'PUBLISHING...' : 'OBJAVI NA EDGE'}
-          </button>
-          <button onClick={() => { setEditingRule(null); setIsAdding(true); }} className="bg-slate-900 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-black rounded-lg shadow-sm">
-            + NOVO PRAVILO
-          </button>
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="hidden md:flex items-center gap-3">
+            <button onClick={publish} disabled={isPublishing} className="bg-emerald-500 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-emerald-600 disabled:opacity-50 rounded-lg flex items-center gap-2 shadow-sm">
+              🚀 {isPublishing ? 'PUBLISHING...' : 'OBJAVI NA EDGE'}
+            </button>
+            <button onClick={() => { setEditingRule(null); setIsAdding(true); }} className="bg-slate-800 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-black rounded-lg shadow-sm">
+              + NOVO PRAVILO
+            </button>
+          </div>
           <button onClick={() => { authService.logout(); setIsAuthenticated(false); }} className="p-2 text-slate-400 hover:text-red-500 transition-colors bg-slate-50 border border-slate-200 rounded-lg">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto py-5 px-8 space-y-4">
+      {/* Mobile Floating Action Balloons */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60] md:hidden px-4 w-full max-w-sm">
+        <button 
+          onClick={publish} 
+          disabled={isPublishing}
+          className="flex-1 bg-emerald-600/90 backdrop-blur-md text-white h-14 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 border border-white/20 active:scale-95 transition-all"
+        >
+          🚀 {isPublishing ? '...' : 'OBJAVI'}
+        </button>
+        <button 
+          onClick={() => { setEditingRule(null); setIsAdding(true); }}
+          className="flex-1 bg-slate-900/90 backdrop-blur-md text-white h-14 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 border border-white/20 active:scale-95 transition-all"
+        >
+          <span className="text-lg">+</span> NOVO
+        </button>
+      </div>
+
+      <main className="flex-1 max-w-7xl w-full mx-auto py-4 md:py-5 px-4 md:px-8 space-y-4">
         {/* Editor Section */}
         {(isAdding || editingRule) && (
-          <div ref={formRef} className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 animate-in fade-in slide-in-from-top-4 duration-400">
+          <div ref={formRef} className="bg-white p-5 md:p-6 rounded-2xl shadow-xl border border-slate-200 animate-in fade-in slide-in-from-top-4 duration-400">
             <RuleForm 
               initialData={editingRule || {}}
               onSubmit={handleFormSubmit}
@@ -199,7 +219,7 @@ const App = () => {
           </button>
 
           {showDevTools && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-in slide-in-from-bottom-2 duration-300">
+            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm animate-in slide-in-from-bottom-2 duration-300">
               <h3 className="text-[11px] font-black uppercase text-slate-500 tracking-widest mb-4 px-1 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span>
                 Pravila u realnom vremenu (Live JS Engine)
@@ -210,7 +230,7 @@ const App = () => {
         </div>
       </main>
 
-      <footer className="mt-auto border-t border-slate-200 bg-white py-6 px-8">
+      <footer className="mt-auto border-t border-slate-200 bg-white py-6 px-8 hidden md:block">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-slate-900 text-white p-1.5 px-3 font-black text-[10px] rounded uppercase select-none">v2.5.0 STABLE</div>
@@ -258,7 +278,7 @@ const LoginForm = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-      <div className="w-full max-w-sm bg-white rounded-2xl p-10 shadow-2xl relative overflow-hidden">
+      <div className="w-full max-w-sm bg-white rounded-2xl p-8 md:p-10 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1.5 bg-[#b71918]"></div>
         <div className="flex justify-center mb-10">
           <div className="bg-[#b71918] p-4 px-6 inline-block rounded shadow-xl transform -rotate-1">

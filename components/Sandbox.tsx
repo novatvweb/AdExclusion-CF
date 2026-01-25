@@ -70,8 +70,8 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
   const renderInputField = (key: keyof TargetingData) => {
     const val = mockData[key];
     return (
-      <div key={key} className="flex flex-col">
-        <label className="block text-[9px] font-black text-slate-400 uppercase mb-1 tracking-widest ml-1">{key.replace('_', ' ')}</label>
+      <div key={key} className="flex flex-col group">
+        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">{key.replace('_', ' ')}</label>
         <input
           type="text"
           value={Array.isArray(val) ? val.join(', ') : String(val)}
@@ -81,7 +81,7 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
             else if (key === 'ads_enabled') newVal = e.target.value === 'true';
             setMockData({ ...mockData, [key]: newVal });
           }}
-          className="w-full text-[11px] h-9 px-3 border border-slate-200 bg-slate-50 rounded-lg outline-none font-bold focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner"
+          className="w-full text-sm h-12 px-4 border border-slate-200 bg-slate-50/50 rounded-xl outline-none font-bold focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner"
         />
       </div>
     );
@@ -89,15 +89,15 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse shadow-sm"></div>
-          <h2 className="font-black text-slate-800 uppercase tracking-tight text-[11px]">Edge Preview Engine</h2>
+      <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-2.5 h-2.5 bg-indigo-600 rounded-full animate-pulse shadow-[0_0_10px_rgba(79,70,229,0.4)]"></div>
+          <h2 className="font-black text-slate-800 uppercase tracking-tight text-[12px]">Edge Preview Engine (Simulation)</h2>
         </div>
-        <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg uppercase tracking-widest">Active Context</span>
+        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg uppercase tracking-widest border border-emerald-100">Live Context Active</span>
       </div>
-      <div className="p-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+      <div className="p-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {renderInputField('site')}
           {renderInputField('keywords')}
           {renderInputField('section')}
@@ -107,34 +107,56 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
           {renderInputField('domain')}
           {renderInputField('ads_enabled')}
         </div>
-        <div className="mt-3">
-          {renderInputField('description_url')}
+        <div className="mt-6 pt-6 border-t border-slate-100">
+          <div className="flex flex-col group">
+            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">Description URL (Full Path)</label>
+            <input
+              type="text"
+              value={mockData.description_url}
+              onChange={(e) => setMockData({ ...mockData, description_url: e.target.value })}
+              className="w-full text-sm h-12 px-4 border border-slate-200 bg-slate-50/50 rounded-xl outline-none font-bold font-mono focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner"
+            />
+          </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-slate-100">
-          <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Aktivni Filteri:</h3>
+        <div className="mt-10 pt-8 border-t border-slate-100">
+          <div className="flex items-center gap-2 mb-6">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aktivni Filteri u ovom kontekstu:</h3>
+            <span className="h-px bg-slate-100 flex-1"></span>
+          </div>
+          
           {activeMatches.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {activeMatches.map(m => (
-                <div key={m.id} className="p-4 bg-slate-900 text-white rounded-xl border border-slate-800 relative shadow-xl">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{m.name}</h4>
+                <div key={m.id} className="p-5 bg-slate-900 text-white rounded-2xl border border-slate-800 relative shadow-2xl group transition-all hover:scale-[1.02]">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.6)]"></span>
+                      <h4 className="text-[11px] font-black uppercase tracking-widest truncate max-w-[150px]">{m.name}</h4>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${m.action === 'hide' ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                      {m.action}
+                    </span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1.5 mb-4">
                     {(m as any)._matchedValues?.map((val: string, i: number) => (
-                      <span key={i} className="px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded text-[8px] font-black uppercase">MATCH: {val}</span>
+                      <span key={i} className="px-2 py-1 bg-white/5 border border-white/10 text-indigo-300 rounded-md text-[9px] font-bold">MATCH: {val}</span>
                     ))}
                   </div>
-                  <div className="mt-3 pt-3 border-t border-white/5">
-                    <code className="text-[9px] font-mono text-indigo-300 block bg-black/40 p-2 rounded-lg truncate border border-white/5">{m.targetElementSelector}</code>
+                  <div className="mt-auto">
+                    <code className="text-[10px] font-mono text-slate-400 block bg-black/40 p-3 rounded-xl border border-white/5 truncate group-hover:text-indigo-200 transition-colors">
+                      {m.targetElementSelector}
+                    </code>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-10 border border-dashed border-slate-100 rounded-2xl bg-slate-50/20">
-              <p className="text-[10px] text-slate-300 font-black uppercase italic tracking-widest">Svi oglasi su trenutno dozvoljeni</p>
+            <div className="text-center py-16 border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/30">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-sm mb-4">
+                 <svg className="w-6 h-6 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              </div>
+              <p className="text-[11px] text-slate-300 font-black uppercase tracking-[0.2em] italic">Svi oglasni sustavi su trenutno dozvoljeni • Nema poklapanja</p>
             </div>
           )}
         </div>
