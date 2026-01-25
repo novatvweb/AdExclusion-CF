@@ -25,7 +25,7 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
 
   const handleImport = async () => {
     if (!importUrl || !importUrl.startsWith('http')) {
-      alert("Unesite ispravan URL");
+      alert("Unesite ispravan URL (mora početi s http)");
       return;
     }
 
@@ -36,10 +36,10 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
         setMockData(result.data);
         setImportUrl('');
       } else {
-        alert(result.message || "Greška pri uvozu podataka.");
+        alert(`Uvoz nije uspio: ${result.message || "Nepoznata greška na serveru"}`);
       }
-    } catch (e) {
-      alert("Neuspješno povezivanje s scraper servisom.");
+    } catch (e: any) {
+      alert(`Greška u simulatoru: ${e.message}`);
     } finally {
       setIsScraping(false);
     }
@@ -121,7 +121,6 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
           <h2 className="font-black text-slate-800 uppercase tracking-tight text-[12px]">Edge Preview Engine (Simulation)</h2>
         </div>
         
-        {/* Quick URL Import Bar */}
         <div className="flex items-center gap-2 bg-white p-1 pl-3 border border-slate-200 rounded-xl shadow-sm max-w-md w-full">
           <input 
             type="url"

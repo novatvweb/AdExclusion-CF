@@ -1,7 +1,6 @@
 
 import { authService } from './authService.ts';
 
-// ISTA LOGIKA: Sve što nije produkcija je DEV.
 const hostname = window.location.hostname;
 const IS_PROD = hostname.includes('pages.dev') || hostname.includes('dnevnik.hr');
 const IS_DEV = !IS_PROD;
@@ -9,7 +8,6 @@ const IS_DEV = !IS_PROD;
 export const dataService = {
   async getRules() {
     if (IS_DEV) {
-      console.log("[DataService] Returning mock rules...");
       return {
         rules: [
           {
@@ -22,17 +20,6 @@ export const dataService = {
             isActive: true,
             respectAdsEnabled: true,
             createdAt: Date.now()
-          },
-          {
-            id: 'mock-2',
-            name: 'Mock: Sakrij Banner na Naslovnici',
-            conditions: [{ targetKey: 'page_type', operator: 'equals', value: 'home', caseSensitive: false }],
-            logicalOperator: 'AND',
-            targetElementSelector: '#banner-top',
-            action: 'hide',
-            isActive: false,
-            respectAdsEnabled: false,
-            createdAt: Date.now()
           }
         ]
       };
@@ -40,33 +27,18 @@ export const dataService = {
 
     try {
       const response = await fetch('/api/sync', {
-        headers: { 
-          'Authorization': `Bearer ${authService.getToken()}` 
-        }
+        headers: { 'Authorization': `Bearer ${authService.getToken()}` }
       });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          authService.logout();
-          throw new Error("Session expired");
-        }
-        return { rules: [] };
-      }
-
+      if (!response.ok) return { rules: [] };
       return response.json();
     } catch (e) {
-      console.error("DataService Error:", e);
+      console.error("Sync fetch failed", e);
       return { rules: [] };
     }
   },
 
   async saveRules(rules: any[], script?: string) {
-    if (IS_DEV) {
-      console.log("🛠️ Dev Mode: Pravila spremljena (mock)", rules);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return { success: true };
-    }
-
+    if (IS_DEV) return { success: true };
     try {
       const response = await fetch('/api/sync', {
         method: 'POST',
@@ -76,8 +48,6 @@ export const dataService = {
         },
         body: JSON.stringify({ rules, script })
       });
-
-      if (!response.ok) throw new Error("Sync failed");
       return response.json();
     } catch (e) {
       return { success: false, message: String(e) };
@@ -86,26 +56,8 @@ export const dataService = {
 
   async scrapeUrl(url: string) {
     if (IS_DEV) {
-      console.log(`🛠️ Dev Mode: Scraping ${url} (mock)`);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const isSport = url.includes('sport') || url.includes('gol');
-      
-      return {
-        success: true,
-        data: {
-          site: isSport ? 'gol' : 'dnevnik',
-          keywords: isSport ? ['Nogomet', 'HNS', 'Dinamo'] : ['Vijesti', 'Hrvatska', 'Politika'],
-          description_url: url,
-          ads_enabled: true,
-          page_type: 'article',
-          content_id: 'art_' + Math.floor(Math.random() * 100000),
-          domain: new URL(url).hostname,
-          section: isSport ? 'sport' : 'vijesti',
-          top_section: isSport ? 'sport' : 'vijesti',
-          ab_test: 'default'
-        }
-      };
+      await new Promise(r => setTimeout(r, 600));
+      return { success: true, data: { site: 'gol', keywords: ['Test'], ads_enabled: true } };
     }
 
     try {
@@ -119,19 +71,23 @@ export const dataService = {
       });
 
       const contentType = response.headers.get("content-type");
-      if (!response.ok || !contentType || !contentType.includes("application/json")) {
-        const text = await response.text().catch(() => "Unknown error");
+      if (!response.ok) {
+        let msg = `Server Error ${response.status}`;
         try {
-          const json = JSON.parse(text);
-          return { success: false, message: json.message || "Greška scrapera" };
-        } catch {
-          return { success: false, message: "Problem u komunikaciji s Edge funkcijom (Timeout ili CPU limit)." };
-        }
+          const errData = await response.json();
+          msg = errData.message || msg;
+        } catch { /* ignore */ }
+        return { success: false, message: msg };
+      }
+
+      if (!contentType || !contentType.includes("application/json")) {
+        return { success: false, message: "Server nije vratio JSON (vjerojatno Cloudflare 5xx greška)" };
       }
 
       return await response.json();
-    } catch (e) {
-      return { success: false, message: "Mrežna greška pri povezivanju sa scraperom." };
+    } catch (e: any) {
+      console.error("Scrape network error:", e);
+      return { success: false, message: `Mrežna greška: ${e.message || "Nepoznata greška"}` };
     }
   },
 
