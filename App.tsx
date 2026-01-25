@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { authService } from './services/authService.ts';
 import { dataService } from './services/dataService.ts';
@@ -63,7 +62,7 @@ const App = () => {
     return `/* Auto-generated AdExclusion Script - DNEVNIK.hr */
 (function() {
   const rules = ${configJson.replace(/\n/g, '\n  ')};
-  const targeting = window.page_meta?.third_party_apps?.ntAds?.targeting;
+  const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
   if (!targeting) return;
 
   const injectStyle = (sel, action) => {
