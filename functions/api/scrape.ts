@@ -6,6 +6,7 @@ type PagesFunction<Env = any> = (context: {
 }) => Response | Promise<Response>;
 
 export const onRequestPost: PagesFunction = async (context) => {
+  const start = Date.now();
   try {
     const { url } = await context.request.json();
 
@@ -16,26 +17,32 @@ export const onRequestPost: PagesFunction = async (context) => {
       });
     }
 
-    // Sigurnosna provjera domene
     const allowedDomains = ['dnevnik.hr', 'gol.hr', 'zimo.hr', 'zadovoljna.hr', 'punkufer.hr'];
     const urlObj = new URL(url);
-    const domainMatch = allowedDomains.some(d => urlObj.hostname.endsWith(d));
-
-    if (!domainMatch) {
-      return new Response(JSON.stringify({ success: false, message: "Scraping dozvoljen samo za Nova TV portale" }), {
+    if (!allowedDomains.some(d => urlObj.hostname.endsWith(d))) {
+      return new Response(JSON.stringify({ success: false, message: "Domeni nije dozvoljen pristup" }), {
         status: 403,
         headers: { "Content-Type": "application/json" }
       });
     }
 
+    // Fetch s timeoutom (Cloudflare Workers imaju limite, moramo biti brzi)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+
     const response = await fetch(url, {
+      signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 AdExclusionBot/3.0'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html',
+        'Cache-Control': 'no-cache'
       }
     });
 
+    clearTimeout(timeout);
+
     if (!response.ok) {
-      return new Response(JSON.stringify({ success: false, message: `Portal nije dostupan (Status ${response.status})` }), {
+      return new Response(JSON.stringify({ success: false, message: `Portal vratio grešku ${response.status}` }), {
         status: 502,
         headers: { "Content-Type": "application/json" }
       });
@@ -43,75 +50,66 @@ export const onRequestPost: PagesFunction = async (context) => {
 
     const html = await response.text();
     
-    // OPTIMIZACIJA: Tražimo 'targeting' ključ direktno bez parsiranja cijelog HTML-a
-    // Tražimo "targeting": { ili targeting: {
-    const targetingIndex = html.indexOf('"targeting":');
-    const fallbackIndex = html.indexOf('targeting:');
-    const startIndex = targetingIndex !== -1 ? targetingIndex : fallbackIndex;
-
-    if (startIndex === -1) {
-       return new Response(JSON.stringify({ success: false, message: "Na stranici nije pronađen 'targeting' blok" }), {
+    // Tražimo ključnu riječ koja označava početak targetinga
+    const targetingKey = '"targeting":';
+    const idx = html.indexOf(targetingKey);
+    
+    if (idx === -1) {
+      return new Response(JSON.stringify({ success: false, message: "Targeting podaci nisu pronađeni u HTML-u" }), {
         status: 404,
         headers: { "Content-Type": "application/json" }
       });
     }
 
-    // Uzimamo idućih 2000 znakova (dovoljno za targeting objekt, štedi CPU)
-    const contextSnippet = html.substring(startIndex, startIndex + 2500);
+    // Uzimamo samo mali prozor teksta nakon ključa (štedi CPU memoriju)
+    const snippet = html.substring(idx, idx + 1500);
 
-    // Helper za čupanje vrijednosti pomoću mini-regexa na malom stringu
-    const extractField = (field: string) => {
-      const regex = new RegExp(`['"]?${field}['"]?\\s*:\\s*['"]([^'"]*)['"]`);
-      const match = contextSnippet.match(regex);
+    // Robusnija ekstrakcija polja (podržava : "vrijednost" i : "vrijednost")
+    const extract = (field: string) => {
+      const regex = new RegExp(`"${field}"\\s*:\\s*"([^"]+)"`);
+      const match = snippet.match(regex);
       return match ? match[1] : "";
     };
 
-    // Poseban helper za keywords (podržava nizove)
+    // Ekstrakcija keywordsa koji su u obliku ["val1", "val2"]
     const extractKeywords = () => {
-      const regex = /keywords\s*:\s*\[([\s\S]*?)\]/;
-      const match = contextSnippet.match(regex);
+      const regex = /"keywords"\s*:\s*\[([^\]]+)\]/;
+      const match = snippet.match(regex);
       if (!match) return [];
       return match[1]
         .split(',')
-        .map(k => k.replace(/['"\s\[\]]/g, ''))
+        .map(k => k.trim().replace(/"/g, ''))
         .filter(k => k.length > 0);
     };
 
-    // Detekcija oglasa
-    const adsEnabled = !contextSnippet.includes('ads_enabled: false') && 
-                       !contextSnippet.includes('"ads_enabled": false') &&
-                       !contextSnippet.includes('ads_enabled:false');
-
-    const extractedData = {
-      site: extractField('site'),
+    const data = {
+      site: extract('site') || (url.includes('gol') ? 'gol' : 'dnevnik'),
       keywords: extractKeywords(),
-      description_url: url,
-      ads_enabled: adsEnabled,
-      page_type: extractField('page_type'),
-      content_id: extractField('content_id'),
+      description_url: extract('description_url') || url,
+      ads_enabled: !snippet.includes('"ads_enabled": false'),
+      page_type: extract('page_type') || 'article',
+      content_id: extract('content_id'),
       domain: urlObj.hostname,
-      section: extractField('section'),
-      top_section: extractField('top_section'),
-      ab_test: extractField('ab_test')
+      section: extract('section'),
+      top_section: extract('top_section'),
+      ab_test: extract('ab_test')
     };
 
-    // Validacija - ako nismo našli ni site ni rubriku, nešto nije u redu
-    if (!extractedData.site && !extractedData.section) {
-       return new Response(JSON.stringify({ success: false, message: "Podaci pronađeni, ali format je nepoznat" }), {
-        status: 422,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-
-    return new Response(JSON.stringify({ success: true, data: extractedData }), {
-      headers: { 
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      }
+    return new Response(JSON.stringify({ 
+      success: true, 
+      data, 
+      debug: { processTime: Date.now() - start } 
+    }), {
+      headers: { "Content-Type": "application/json" }
     });
 
-  } catch (err) {
-    return new Response(JSON.stringify({ success: false, message: "Greška pri obradi podataka", error: String(err) }), {
+  } catch (err: any) {
+    const isTimeout = err.name === 'AbortError';
+    return new Response(JSON.stringify({ 
+      success: false, 
+      message: isTimeout ? "Portal prespor (Timeout)" : "Greška pri obradi",
+      error: String(err)
+    }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });
