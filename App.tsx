@@ -16,6 +16,7 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
   const [showDevTools, setShowDevTools] = useState(false);
+  const [showSandbox, setShowSandbox] = useState(false);
   
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -151,10 +152,10 @@ const App = () => {
         
         <div className="flex items-center gap-2 md:gap-3">
           <div className="hidden md:flex items-center gap-3">
-            <button onClick={publish} disabled={isPublishing} className="bg-emerald-500 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-emerald-600 disabled:opacity-50 rounded-lg flex items-center gap-2 shadow-sm">
+            <button onClick={publish} disabled={isPublishing} className="bg-emerald-600 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-emerald-700 disabled:opacity-50 rounded-lg flex items-center gap-2 shadow-sm">
               🚀 {isPublishing ? 'PUBLISHING...' : 'OBJAVI NA EDGE'}
             </button>
-            <button onClick={() => { setEditingRule(null); setIsAdding(true); }} className="bg-slate-800 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-black rounded-lg shadow-sm">
+            <button onClick={() => { setEditingRule(null); setIsAdding(true); }} className="bg-slate-900 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-black rounded-lg shadow-sm">
               + NOVO PRAVILO
             </button>
           </div>
@@ -203,8 +204,24 @@ const App = () => {
           />
         </div>
 
-        {/* Simulation Section */}
-        <Sandbox rules={rules} />
+        {/* Simulator Section with Toggle */}
+        <div className="pt-2">
+          <button 
+            onClick={() => setShowSandbox(!showSandbox)}
+            className="flex items-center gap-3 text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-indigo-600 transition-all mb-3 px-2 group"
+          >
+            <div className={`w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all group-hover:border-indigo-200 ${showSandbox ? 'rotate-180 bg-indigo-50 border-indigo-200 text-indigo-600 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : ''}`}>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </div>
+            Simulator & Edge Preview Engine
+          </button>
+          
+          {showSandbox && (
+            <div className="animate-in slide-in-from-bottom-2 duration-300">
+              <Sandbox rules={rules} />
+            </div>
+          )}
+        </div>
 
         {/* Technical Details Section */}
         <div className="pt-2">
