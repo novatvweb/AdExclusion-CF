@@ -1,3 +1,4 @@
+
 import { authService } from './authService.ts';
 
 // ISTA LOGIKA: Sve što nije produkcija je DEV.
@@ -37,7 +38,6 @@ export const dataService = {
       };
     }
 
-    // PRODUCTION LOGIC
     const response = await fetch('/api/sync', {
       headers: { 
         'Authorization': `Bearer ${authService.getToken()}` 
@@ -55,7 +55,6 @@ export const dataService = {
   async saveRules(rules: any[], script?: string) {
     if (IS_DEV) {
       console.log("🛠️ Dev Mode: Pravila spremljena (mock)", rules);
-      // Simulacija kašnjenja
       await new Promise(resolve => setTimeout(resolve, 500));
       return { success: true };
     }
@@ -73,6 +72,42 @@ export const dataService = {
       authService.logout();
       throw new Error("Session expired");
     }
+
+    return response.json();
+  },
+
+  async scrapeUrl(url: string) {
+    if (IS_DEV) {
+      console.log(`🛠️ Dev Mode: Scraping ${url} (mock)`);
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const isSport = url.includes('sport') || url.includes('gol');
+      
+      return {
+        success: true,
+        data: {
+          site: isSport ? 'gol' : 'dnevnik',
+          keywords: isSport ? ['Nogomet', 'HNS', 'Dinamo'] : ['Vijesti', 'Hrvatska', 'Politika'],
+          description_url: url,
+          ads_enabled: true,
+          page_type: 'article',
+          content_id: 'art_' + Math.floor(Math.random() * 100000),
+          domain: new URL(url).hostname,
+          section: isSport ? 'sport' : 'vijesti',
+          top_section: isSport ? 'sport' : 'vijesti',
+          ab_test: 'default'
+        }
+      };
+    }
+
+    const response = await fetch('/api/scrape', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authService.getToken()}`
+      },
+      body: JSON.stringify({ url })
+    });
 
     return response.json();
   },

@@ -1,11 +1,15 @@
+
 import React, { useState, useMemo } from 'react';
 import { BlacklistRule, TargetingData, Operator } from '../types';
+import { dataService } from '../services/dataService.ts';
 
 interface SandboxProps {
   rules: BlacklistRule[];
 }
 
 export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
+  const [importUrl, setImportUrl] = useState('');
+  const [isScraping, setIsScraping] = useState(false);
   const [mockData, setMockData] = useState<TargetingData>({
     site: 'gol',
     keywords: ['Rukomet 2026', 'Hrvatska'],
@@ -18,6 +22,28 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
     top_section: 'ostali-sportovi',
     ab_test: 'a_version'
   });
+
+  const handleImport = async () => {
+    if (!importUrl || !importUrl.startsWith('http')) {
+      alert("Unesite ispravan URL");
+      return;
+    }
+
+    setIsScraping(true);
+    try {
+      const result = await dataService.scrapeUrl(importUrl);
+      if (result.success && result.data) {
+        setMockData(result.data);
+        setImportUrl('');
+      } else {
+        alert(result.message || "Greška pri uvozu podataka.");
+      }
+    } catch (e) {
+      alert("Neuspješno povezivanje s scraper servisom.");
+    } finally {
+      setIsScraping(false);
+    }
+  };
 
   const checkCondition = (cond: any, data: TargetingData) => {
     const isCS = !!cond.caseSensitive;
@@ -89,13 +115,38 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+      <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-2.5 h-2.5 bg-indigo-600 rounded-full animate-pulse shadow-[0_0_10px_rgba(79,70,229,0.4)]"></div>
           <h2 className="font-black text-slate-800 uppercase tracking-tight text-[12px]">Edge Preview Engine (Simulation)</h2>
         </div>
-        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg uppercase tracking-widest border border-emerald-100">Live Context Active</span>
+        
+        {/* Quick URL Import Bar */}
+        <div className="flex items-center gap-2 bg-white p-1 pl-3 border border-slate-200 rounded-xl shadow-sm max-w-md w-full">
+          <input 
+            type="url"
+            value={importUrl}
+            onChange={(e) => setImportUrl(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleImport()}
+            placeholder="Zalijepi URL članka..."
+            className="flex-1 text-[11px] font-bold outline-none bg-transparent"
+            disabled={isScraping}
+          />
+          <button 
+            onClick={handleImport}
+            disabled={isScraping || !importUrl}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center gap-2"
+          >
+            {isScraping ? (
+              <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
+            )}
+            Učitaj
+          </button>
+        </div>
       </div>
+      
       <div className="p-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {renderInputField('site')}
