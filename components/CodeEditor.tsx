@@ -37,15 +37,24 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, placeho
   }, [value]);
 
   const insertExample = () => {
-    const example = `// Primjer: Promijeni boju elementa na temelju domene
-if (ctx.domain === 'gol.dnevnik.hr') {
-  const el = document.querySelector(selector);
-  if (el) {
-    el.style.backgroundColor = '#b71918';
-    el.style.color = '#ffffff';
-    el.style.padding = '10px';
-    console.log('AdEx: Custom style applied for', selector);
-  }
+    const example = `// Napomena: Uvjeti su već provjereni prije izvršavanja ovog koda.
+// Ne trebate ponovno provjeravati targeting varijable.
+
+const el = document.querySelector(selector);
+
+if (el) {
+  // Primjer manipulacije
+  el.style.border = '4px solid #b71918';
+  el.style.position = 'relative';
+  
+  // Ako je akcija pravila "SAKRIJ", element se neće vidjeti
+  // osim ako ga ovdje eksplicitno ne prikažete:
+  // el.style.display = 'block'; 
+  // el.style.visibility = 'visible';
+
+  console.log('AdEx: Custom JS executed on', selector);
+} else {
+  console.warn('AdEx: Element not found in DOM', selector);
 }`;
     onChange(example);
   };
@@ -102,7 +111,7 @@ if (ctx.domain === 'gol.dnevnik.hr') {
       ) : (
          <div className="flex justify-between items-center h-5">
             <p className="text-[10px] text-slate-500 leading-tight">
-                <strong>Safety Sandbox:</strong> Kod se izvršava unutar <code>try-catch</code> bloka u produkciji.
+                <strong>Safety Sandbox:</strong> Kod se automatski izvršava na <code>DOMContentLoaded</code> eventu.
             </p>
             {value.trim().length > 0 && (
                 <span className="text-[9px] font-black text-emerald-500 flex items-center gap-1 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-900/50">
