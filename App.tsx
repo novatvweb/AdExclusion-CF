@@ -59,89 +59,128 @@ const App = () => {
       js: r.customJs ? r.customJs : undefined
     })).filter(r => r.active);
 
-    const configJson = JSON.stringify(config);
+    const configJson = JSON.stringify(config, null, 2);
 
-    // CRITICAL UPDATE: 
-    // Uses clear variable names (rules, targeting, cond) to prevent shadowing bugs.
-    // Explicitly handles Logical OR vs AND in a clean scope.
-    return `!function(){
-      try {
-        const rules = ${configJson};
-        const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
-        
-        if (targeting) {
-          const inject = (sel, action) => {
-             const s = document.createElement("style");
-             const disp = action === "show" ? "block" : "none";
-             const vis = action === "show" ? "visible" : "hidden";
-             s.innerHTML = sel + " { display: " + disp + " !important; visibility: " + vis + " !important; }";
-             document.head.appendChild(s);
-          };
+    // DEBUG MODE ENABLED:
+    // Script is now un-minified and contains detailed comments explaining the logic flow.
+    // This allows developers to read the logic directly in the browser's "Sources" tab.
+    return `
+/**
+ * AdExclusion Engine v2.5
+ * Generated: ${new Date().toISOString()}
+ * Mode: Production (Un-minified for Debugging)
+ */
+!function() {
+  try {
+    // Configuration Payload
+    const rules = ${configJson};
+    
+    // Get Page Context
+    const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
+    
+    if (!targeting) {
+      console.warn("AdEx: Targeting object missing.");
+      return;
+    }
+
+    // Helper: CSS Injection
+    const inject = (sel, action) => {
+       const s = document.createElement("style");
+       // If action is SHOW, we force display block/visible
+       // If action is HIDE, we force display none/hidden
+       const disp = action === "show" ? "block" : "none";
+       const vis = action === "show" ? "visible" : "hidden";
+       
+       s.innerHTML = sel + " { display: " + disp + " !important; visibility: " + vis + " !important; }";
+       document.head.appendChild(s);
+       console.log("AdEx Action Applied:", action, "on", sel);
+    };
+    
+    // Helper: JS Injection
+    const runJs = (code, ctx, sel) => {
+       try { 
+         new Function("ctx", "selector", code)(ctx, sel); 
+       } catch(err) { 
+         console.warn("AdEx JS Error:", err); 
+       }
+    };
+
+    // Main Logic Loop
+    rules.forEach(rule => {
+       console.debug("AdEx Checking Rule:", rule.name);
+
+       // 1. Check Global Ads Enabled requirement
+       if (rule.rae && targeting.ads_enabled !== true) {
+         console.debug("AdEx Skipped: Ads disabled globally");
+         return;
+       }
+
+       // 2. Evaluate all conditions against page targeting
+       const results = rule.conds.map(cond => {
+          const pageValRaw = targeting[cond.targetKey];
           
-          const runJs = (code, ctx, sel) => {
-             try { new Function("ctx", "selector", code)(ctx, sel); } 
-             catch(err) { console.warn("AdEx JS Error:", err); }
-          };
+          // Normalize page values to array of lowercased strings
+          const pageVals = Array.isArray(pageValRaw) 
+            ? pageValRaw.map(v => String(v).toLowerCase().trim()) 
+            : [String(pageValRaw || "").toLowerCase().trim()];
+          
+          // Normalize rule values
+          const ruleVals = cond.value.split(",").map(v => v.trim().toLowerCase());
 
-          rules.forEach(rule => {
-             // 1. Check Global Ads Enabled requirement
-             if (rule.rae && targeting.ads_enabled !== true) return;
+          let isCondMet = false;
+          switch (cond.operator) {
+            case "equals": 
+              // True if ANY rule val matches ANY page val
+              isCondMet = ruleVals.some(rv => pageVals.includes(rv));
+              break;
+            case "not_equals": 
+              // True if ALL rule vals are NOT in page vals
+              isCondMet = ruleVals.every(rv => !pageVals.includes(rv));
+              break;
+            case "contains": 
+              isCondMet = ruleVals.some(rv => pageVals.some(pv => pv.indexOf(rv) > -1));
+              break;
+            case "not_contains": 
+              isCondMet = ruleVals.every(rv => pageVals.every(pv => pv.indexOf(rv) === -1));
+              break;
+          }
+          return isCondMet;
+       });
 
-             // 2. Evaluate all conditions
-             const results = rule.conds.map(cond => {
-                const pageValRaw = targeting[cond.targetKey];
-                
-                // Normalize page values to array of lowercased strings
-                const pageVals = Array.isArray(pageValRaw) 
-                  ? pageValRaw.map(v => String(v).toLowerCase().trim()) 
-                  : [String(pageValRaw || "").toLowerCase().trim()];
-                
-                // Normalize rule values
-                const ruleVals = cond.value.split(",").map(v => v.trim().toLowerCase());
+       // 3. Apply Logical Operator (AND vs OR)
+       let isMatch = false;
+       if (rule.lOp === "OR") {
+          // OR: True if AT LEAST ONE condition is true
+          isMatch = results.some(r => r === true);
+       } else {
+          // AND: True only if ALL conditions are true
+          isMatch = results.every(r => r === true);
+       }
 
-                switch (cond.operator) {
-                  case "equals": 
-                    // True if ANY rule val matches ANY page val
-                    return ruleVals.some(rv => pageVals.includes(rv));
-                  case "not_equals": 
-                    // True if ALL rule vals are NOT in page vals
-                    return ruleVals.every(rv => !pageVals.includes(rv));
-                  case "contains": 
-                    return ruleVals.some(rv => pageVals.some(pv => pv.indexOf(rv) > -1));
-                  case "not_contains": 
-                    return ruleVals.every(rv => pageVals.every(pv => pv.indexOf(rv) === -1));
-                  default: return false;
-                }
-             });
+       // 4. Execute Action if matched
+       if (isMatch) {
+          console.log("AdEx MATCH FOUND:", rule.name);
+          inject(rule.sel, rule.act);
+          
+          if (rule.js) {
+             const exec = () => runJs(rule.js, targeting, rule.sel);
+             if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", exec);
+             else exec();
+          }
+       }
+    });
 
-             // 3. Apply Logical Operator (AND vs OR)
-             // Debug: console.log(rule.name, rule.lOp, results);
-             const isMatch = rule.lOp === "OR" 
-                ? results.some(r => r) 
-                : results.every(r => r);
-
-             // 4. Execute Action
-             if (isMatch) {
-                inject(rule.sel, rule.act);
-                if (rule.js) {
-                   const exec = () => runJs(rule.js, targeting, rule.sel);
-                   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", exec);
-                   else exec();
-                }
-             }
-          });
-        }
-      } catch (err) {
-        console.error("AdExclusion Engine Error:", err);
-      }
-    }();`
+  } catch (err) {
+    console.error("AdExclusion Engine Critical Error:", err);
+  }
+}();`;
   };
 
   const publish = async () => {
     if (!confirm('Jeste li sigurni da želite objaviti trenutna pravila na produkciju?')) return;
     setIsPublishing(true);
     
-    // Generiramo minificiranu skriptu za Edge
+    // Generiramo neminificiranu skriptu za Edge
     const script = generateProductionScript(rules);
     
     try {
