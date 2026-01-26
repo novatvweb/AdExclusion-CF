@@ -35,7 +35,6 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
   const safeRunJs = (code, ctx, selector) => {
     if(!code) return;
     try {
-      // Izolirano izvršavanje s prosljeđenim kontekstom
       new Function('ctx', 'selector', code)(ctx, selector);
     } catch(e) {
       console.warn('AdExclusion JS Error:', e);
@@ -47,7 +46,8 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
 
     const results = rule.conds.map(c => {
       const actualRaw = targeting[c.targetKey];
-      const actualItems = Array.isArray(actualRaw) 
+      // Robust array conversion
+      const actualValues = Array.isArray(actualRaw) 
         ? actualRaw.map(v => String(v).toLowerCase().trim())
         : [String(actualRaw || '').toLowerCase().trim()];
         
@@ -55,21 +55,39 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
       
       switch(c.operator) {
         case 'equals': 
-          return inputValues.some(iv => actualItems.some(ai => ai === iv));
+          // Checks if ANY input value is present in actual values
+          return inputValues.some(iv => actualValues.includes(iv));
+          
         case 'not_equals': 
-          return inputValues.every(iv => actualItems.every(ai => ai !== iv));
+          // Checks if ALL input values are ABSENT from actual values
+          return inputValues.every(iv => !actualValues.includes(iv));
+          
         case 'contains': 
-          return inputValues.some(iv => actualItems.some(ai => ai.indexOf(iv) !== -1));
+          // Checks if ANY input is a substring of ANY actual value
+          return inputValues.some(iv => actualValues.some(av => av.indexOf(iv) > -1));
+          
         case 'not_contains': 
-          return inputValues.every(iv => actualItems.every(ai => ai.indexOf(iv) === -1));
+          // Checks if ALL inputs are NOT substrings of ANY actual value
+          return inputValues.every(iv => actualValues.every(av => av.indexOf(iv) === -1));
+          
         default: return false;
       }
     });
 
+    // Logical OR / AND Logic
     const match = rule.lOp === 'AND' ? results.every(r => r) : results.some(r => r);
+    
     if (match) {
         injectStyle(rule.sel, rule.act);
-        if (rule.js) safeRunJs(rule.js, targeting, rule.sel);
+        
+        if (rule.js) {
+            const run = () => safeRunJs(rule.js, targeting, rule.sel);
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', run);
+            } else {
+                run();
+            }
+        }
     }
   });
 })();`;

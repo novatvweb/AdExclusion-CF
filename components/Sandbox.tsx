@@ -39,6 +39,7 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
     const actualRaw = data[cond.targetKey as keyof TargetingData];
     const isArrayField = Array.isArray(actualRaw);
     
+    // Convert actual data to array of strings for consistent comparison
     const actualItems = isArrayField 
       ? (actualRaw as string[]).map(v => processVal(v))
       : [processVal(actualRaw)];
@@ -46,21 +47,25 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
     let matchedValues: string[] = [];
 
     if (cond.operator === Operator.EQUALS) {
-      matchedValues = inputValues.filter(iv => actualItems.some(ai => ai === iv));
+      // Logic: ANY input value matches ANY actual value
+      matchedValues = inputValues.filter(iv => actualItems.includes(iv));
       return { success: matchedValues.length > 0, matches: matchedValues, cond };
+
     } else if (cond.operator === Operator.NOT_EQUALS) {
-      const failsEquality = inputValues.filter(iv => actualItems.some(ai => ai === iv));
-      return { success: failsEquality.length === 0, matches: [], cond };
+      // Logic: ALL input values must NOT be present in actual values
+      // If any input value is found in actual items, the condition fails.
+      const foundForbidden = inputValues.some(iv => actualItems.includes(iv));
+      return { success: !foundForbidden, matches: [], cond };
+
     } else if (cond.operator === Operator.CONTAINS) {
-      if (isArrayField) {
-        matchedValues = inputValues.filter(iv => actualItems.some(ai => ai === iv));
-      } else {
-        matchedValues = inputValues.filter(iv => actualItems.some(ai => ai.includes(iv)));
-      }
+      // Logic: ANY input value is a substring of ANY actual value
+      matchedValues = inputValues.filter(iv => actualItems.some(ai => ai.includes(iv)));
       return { success: matchedValues.length > 0, matches: matchedValues, cond };
+
     } else if (cond.operator === Operator.NOT_CONTAINS) {
-      const containsAny = inputValues.filter(iv => isArrayField ? actualItems.some(ai => ai === iv) : actualItems.some(ai => ai.includes(iv)));
-      return { success: containsAny.length === 0, matches: [], cond };
+      // Logic: ALL input values must NOT be substrings of ANY actual value
+      const foundForbidden = inputValues.some(iv => actualItems.some(ai => ai.includes(iv)));
+      return { success: !foundForbidden, matches: [], cond };
     }
     return { success: false, matches: [], cond };
   };
