@@ -135,10 +135,10 @@ export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle, o
                     {rule.conditions.slice(0, 4).map((c, i) => (
                       <React.Fragment key={i}>
                         <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
-                          <span className="text-[8px] font-black text-indigo-600 bg-slate-50 px-2 py-1 uppercase tracking-tighter border-r border-slate-100">
-                            {TARGETING_KEYS.find(k => k.value === c.targetKey)?.label.split(' (')[0] || c.targetKey}
+                          <span className="text-[8px] font-black text-indigo-600 px-2 py-1 uppercase tracking-tighter">
+                            {TARGETING_KEYS.find(k => k.value === c.targetKey)?.label.split(' (*.)')[1] || c.targetKey}
                           </span>
-                          <span className="text-[10px] font-black text-slate-400 px-1.5 bg-slate-50/50 border-r border-slate-100 min-w-[20px] text-center">
+                          <span className="text-[10px] font-black text-slate-400 min-w-[5px] text-center">
                             {OPERATOR_SYMBOLS[c.operator] || '?'}
                           </span>
                           <span className="text-[10px] font-bold text-slate-700 px-2 py-1 truncate max-w-[120px] italic">
