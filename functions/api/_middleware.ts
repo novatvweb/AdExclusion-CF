@@ -1,3 +1,4 @@
+
 type PagesFunction<Env = any> = (context: {
   request: Request;
   env: Env;
@@ -6,6 +7,7 @@ type PagesFunction<Env = any> = (context: {
 
 interface Env {
   ADMIN_PASS?: string;
+  USER_PASS?: string;
 }
 
 export const onRequest: PagesFunction<Env> = async ({ request, env, next }) => {
@@ -28,17 +30,33 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, next }) => {
   }
 
   const authHeader = request.headers.get("Authorization");
-  const expectedToken = btoa(`admin:${env.ADMIN_PASS}`);
+  
+  // Generiramo očekivane tokene za oba korisnika
+  const adminToken = btoa(`admin:${env.ADMIN_PASS}`);
+  
+  // Za usera provjeravamo samo ako je postavljen pass, inače taj login nije moguć
+  const userToken = env.USER_PASS ? btoa(`user:${env.USER_PASS}`) : null;
 
-  if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
-    return new Response(JSON.stringify({ 
-      success: false, 
-      message: "Niste autorizirani za ovu akciju (401 Unauthorized)." 
-    }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" }
-    });
+  if (!authHeader) {
+     return new Response(JSON.stringify({ success: false, message: "Missing Authorization header." }), { status: 401 });
   }
 
-  return next();
+  // Provjera tokena (Bearer schema)
+  const providedToken = authHeader.replace('Bearer ', '');
+
+  if (providedToken === adminToken) {
+    return next();
+  }
+
+  if (userToken && providedToken === userToken) {
+    return next();
+  }
+
+  return new Response(JSON.stringify({ 
+    success: false, 
+    message: "Niste autorizirani za ovu akciju (401 Unauthorized)." 
+  }), {
+    status: 401,
+    headers: { "Content-Type": "application/json" }
+  });
 };

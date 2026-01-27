@@ -18,10 +18,16 @@ const App = () => {
   const [showDevTools, setShowDevTools] = useState(false);
   const [showSandbox, setShowSandbox] = useState(true);
   
+  // State for permissions
+  const [canManageJs, setCanManageJs] = useState(() => authService.canEditCode());
+  
   const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
+      // Refresh permissions on auth state change
+      setCanManageJs(authService.canEditCode());
+      
       dataService.getRules().then(data => {
         setRules(data.rules || []);
         setLoading(false);
@@ -63,7 +69,6 @@ const App = () => {
 
     // DEBUG MODE ENABLED:
     // Script is now un-minified and contains detailed comments explaining the logic flow.
-    // This allows developers to read the logic directly in the browser's "Sources" tab.
     return `
 /**
  * AdExclusion Engine v2.5
@@ -86,8 +91,6 @@ const App = () => {
     // Helper: CSS Injection
     const inject = (sel, action) => {
        const s = document.createElement("style");
-       // If action is SHOW, we force display block/visible
-       // If action is HIDE, we force display none/hidden
        const disp = action === "show" ? "block" : "none";
        const vis = action === "show" ? "visible" : "hidden";
        
@@ -150,10 +153,8 @@ const App = () => {
        // 3. Apply Logical Operator (AND vs OR)
        let isMatch = false;
        if (rule.lOp === "OR") {
-          // OR: True if AT LEAST ONE condition is true
           isMatch = results.some(r => r === true);
        } else {
-          // AND: True only if ALL conditions are true
           isMatch = results.every(r => r === true);
        }
 
@@ -234,7 +235,7 @@ const App = () => {
               + NOVO PRAVILO
             </button>
           </div>
-          <button onClick={() => { authService.logout(); setIsAuthenticated(false); }} className="p-2 text-slate-400 hover:text-red-500 transition-colors bg-slate-50 border border-slate-200 rounded-lg">
+          <button onClick={() => { authService.logout(); setIsAuthenticated(false); }} className="p-2 text-slate-400 hover:text-red-500 transition-colors bg-slate-50 border border-slate-200 rounded-lg" title="Odjava">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           </button>
         </div>
@@ -265,6 +266,7 @@ const App = () => {
               initialData={editingRule || {}}
               onSubmit={handleFormSubmit}
               onCancel={() => { setIsAdding(false); setEditingRule(null); }}
+              canManageJs={canManageJs}
             />
           </div>
         )}
@@ -299,27 +301,29 @@ const App = () => {
         </div>
 
         {/* Technical Details Section */}
-        <div className="pt-2">
-          <button 
-            onClick={() => setShowDevTools(!showDevTools)}
-            className="flex items-center gap-3 text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-indigo-600 transition-all mb-3 px-2 group"
-          >
-            <div className={`w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all group-hover:border-indigo-200 ${showDevTools ? 'rotate-180 bg-indigo-50 border-indigo-200 text-indigo-600' : ''}`}>
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-            </div>
-            Integracijski Detalji & JS Kod
-          </button>
+        {canManageJs && (
+          <div className="pt-2">
+            <button 
+              onClick={() => setShowDevTools(!showDevTools)}
+              className="flex items-center gap-3 text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-indigo-600 transition-all mb-3 px-2 group"
+            >
+              <div className={`w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all group-hover:border-indigo-200 ${showDevTools ? 'rotate-180 bg-indigo-50 border-indigo-200 text-indigo-600' : ''}`}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              Integracijski Detalji & JS Kod
+            </button>
 
-          {showDevTools && (
-            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm animate-in slide-in-from-bottom-2 duration-300">
-              <h3 className="text-[11px] font-black uppercase text-slate-500 tracking-widest mb-4 px-1 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span>
-                Pravila u realnom vremenu (Live JS Engine)
-              </h3>
-              <IntegrationPreview rules={rules} />
-            </div>
-          )}
-        </div>
+            {showDevTools && (
+              <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm animate-in slide-in-from-bottom-2 duration-300">
+                <h3 className="text-[11px] font-black uppercase text-slate-500 tracking-widest mb-4 px-1 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span>
+                  Pravila u realnom vremenu (Live JS Engine)
+                </h3>
+                <IntegrationPreview rules={rules} />
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       <footer className="mt-auto border-t border-slate-200 bg-white py-6 px-8 hidden md:block">
@@ -338,7 +342,9 @@ const App = () => {
             </div>
             <div className="flex flex-col items-end">
               <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Auth Scope</span>
-              <span className="text-[11px] font-bold text-slate-600 uppercase">Cloudflare KV Session</span>
+              <span className="text-[11px] font-bold text-slate-600 uppercase">
+                {authService.getRole() === 'admin' ? 'SuperAdmin' : 'Standard User'}
+              </span>
             </div>
           </div>
         </div>
@@ -380,7 +386,7 @@ const LoginForm = ({ onLogin }) => {
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label className="text-[11px] font-black uppercase text-slate-500 mb-2 block tracking-widest">System User</label>
-            <input type="text" value={user} onChange={e => setUser(e.target.value)} disabled={isLoggingIn} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-red-600 transition-all text-sm shadow-inner" />
+            <input type="text" value={user} onChange={e => setUser(e.target.value)} disabled={isLoggingIn} placeholder="admin or user" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-red-600 transition-all text-sm shadow-inner" />
           </div>
           <div>
             <label className="text-[11px] font-black uppercase text-slate-500 mb-2 block tracking-widest">Secret Key</label>
