@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Operator, BlacklistRule, TargetingKey, ActionType, Condition, LogicalOperator } from '../types';
 import { TARGETING_KEYS, OPERATORS } from '../constants';
 import { CodeEditor } from './CodeEditor.tsx';
@@ -19,9 +19,10 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   );
   const [selector, setSelector] = useState(initialData?.targetElementSelector || '');
   const [action, setAction] = useState<ActionType>(initialData?.action || 'hide');
-  // Zadržavamo customJs u state-u čak i ako je editor skriven, da ga ne prebrišemo
   const [customJs, setCustomJs] = useState(initialData?.customJs || '');
   const [respectAdsEnabled, setRespectAdsEnabled] = useState(initialData?.respectAdsEnabled ?? true);
+  const [startDate, setStartDate] = useState<string>(initialData?.startDate ? new Date(initialData.startDate).toISOString().slice(0, 16) : '');
+  const [endDate, setEndDate] = useState<string>(initialData?.endDate ? new Date(initialData.endDate).toISOString().slice(0, 16) : '');
   const [showAdvanced, setShowAdvanced] = useState(!!initialData?.customJs && canManageJs);
 
   const addCondition = () => {
@@ -52,14 +53,15 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
       logicalOperator,
       targetElementSelector: selector,
       action,
-      customJs, // Šaljemo state, bio on promijenjen ili ne
-      respectAdsEnabled
+      customJs,
+      respectAdsEnabled,
+      startDate: startDate ? new Date(startDate).getTime() : undefined,
+      endDate: endDate ? new Date(endDate).getTime() : undefined
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Header Section Optimized for Mobile */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center border-b border-slate-100 pb-5 gap-3">
         <div>
           <h2 className="text-[18px] md:text-[17px] font-black uppercase tracking-tight text-slate-900 flex items-center gap-3">
@@ -69,7 +71,6 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
         </div>
       </div>
 
-      {/* Campaign Name & Action Type Stacked on Mobile */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div className="md:col-span-3">
           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1">Naziv Kampanje / Klijenta</label>
@@ -98,7 +99,34 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
         </div>
       </div>
 
-      {/* Logical Configuration Area */}
+      {/* Scheduling Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="group">
+          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">Start Date (Opcionalno)</label>
+          <div className="relative">
+            <input
+              type="datetime-local"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full h-12 bg-slate-50 border border-slate-200 px-4 rounded-xl text-[12px] font-bold outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner"
+            />
+            {startDate && <button onClick={() => setStartDate('')} type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500">×</button>}
+          </div>
+        </div>
+        <div className="group">
+          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">End Date (Opcionalno)</label>
+          <div className="relative">
+            <input
+              type="datetime-local"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full h-12 bg-slate-50 border border-slate-200 px-4 rounded-xl text-[12px] font-bold outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner"
+            />
+            {endDate && <button onClick={() => setEndDate('')} type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500">×</button>}
+          </div>
+        </div>
+      </div>
+
       <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-5 md:p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-5 mb-6 pb-5 border-b border-slate-200/50">
           <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -125,12 +153,9 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
           </div>
         </div>
 
-        {/* Condition Rows */}
         <div className="space-y-6 md:space-y-3">
           {conditions.map((cond, index) => (
             <div key={index} className="flex flex-col md:flex-row gap-3 md:items-center animate-in fade-in slide-in-from-left-2 duration-300 bg-white md:bg-transparent p-4 md:p-0 rounded-2xl border border-slate-200 md:border-none shadow-sm md:shadow-none">
-              
-              {/* Key & Op Selection Group */}
               <div className="flex gap-2.5 w-full md:flex-[2.2]">
                 <div className="flex-1 relative h-12">
                   <select
@@ -154,7 +179,6 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
                 </div>
               </div>
 
-              {/* Value Input Group */}
               <div className="flex gap-2.5 w-full md:flex-[2.8]">
                 <div className="flex-1 relative flex items-center h-12">
                   <input
@@ -197,7 +221,6 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
         </button>
       </div>
 
-      {/* Target Element & Footer Buttons */}
       <div className="grid grid-cols-1 gap-5 pt-3">
         <div>
           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1">Target Element (CSS Selektor)</label>
@@ -210,7 +233,6 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
           />
         </div>
 
-        {/* Advanced: JS Injection Toggle & Editor - RESTRICTED TO ADMIN */}
         {canManageJs && (
           <div className="pt-2">
              <button 

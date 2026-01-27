@@ -17,37 +17,53 @@ interface Env {
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const dataRaw = context.env.AD_EXCLUSION_KV;
   const data = await dataRaw.get("rules_data_dev");
-  const fallback = "/* AdExclusion (DEV): No rules found */";
+  const fallback = "/* AdExclusion (DEV): No active rules found at this time */";
+  const now = Date.now();
+  
+  const croFormatter = new Intl.DateTimeFormat('hr-HR', {
+    timeZone: 'Europe/Zagreb',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false
+  });
+  const croTime = croFormatter.format(new Date(now));
   
   const headers = {
     "Content-Type": "application/javascript; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Cache-Control": "no-cache, no-store, must-revalidate",
-    "CDN-Cache-Control": "no-store", // Cloudflare Edge bypass
-    "Cloudflare-CDN-Cache-Control": "no-store", // Explicit CF bypass
+    "CDN-Cache-Control": "no-store",
+    "Cloudflare-CDN-Cache-Control": "no-store",
     "X-AdEx-Env": "development",
     "X-Content-Type-Options": "nosniff"
   };
 
-  if (!data) {
-    return new Response(fallback, { headers });
-  }
+  if (!data) return new Response(fallback, { headers });
 
-  try {
-    const parsed = JSON.parse(data);
-    
-    let output = (parsed.script && typeof parsed.script === 'string' && parsed.script.trim().length > 0) 
-      ? parsed.script 
-      : fallback;
+  const parsed = JSON.parse(data);
+  
+  const activeRules = (parsed.rules || []).filter((r: any) => {
+    if (!r.isActive) return false;
+    if (r.startDate && now < r.startDate) return false;
+    if (r.endDate && now > r.endDate) return false;
+    return true;
+  });
 
-    if (output !== fallback && output.includes("const rules = [];")) {
-      output = fallback;
-    }
+  if (activeRules.length === 0) return new Response(`/* AdExclusion (DEV): No active rules at this moment (${croTime}) */`, { headers });
 
-    return new Response(output, { headers });
-  } catch (err) {
-    return new Response(`/* AdExclusion (DEV) Error: ${err.message} */`, {
-      headers: { ...headers, "Content-Type": "application/javascript" }
-    });
-  }
+  const config = activeRules.map((r: any) => ({
+    name: r.name,
+    conds: r.conditions,
+    lOp: r.logicalOperator,
+    sel: r.targetElementSelector,
+    act: r.action || 'hide',
+    rae: !!r.respectAdsEnabled,
+    js: r.customJs ? r.customJs : undefined
+  }));
+
+  const configJson = JSON.stringify(config, null, 2);
+
+  const script = `/** AdExclusion (DEV) [Zagreb Time: ${croTime}] **/!function(){try{const rules=${configJson},targeting=page_meta?.third_party_apps?.ntAds?.targeting;if(!targeting)return;const inject=(sel,act)=>{const s=document.createElement("style"),disp=act==="show"?"block":"none",vis=act==="show"?"visible":"hidden";s.innerHTML=sel+"{display:"+disp+"!important;visibility:"+vis+"!important;}",document.head.appendChild(s)},run=(code,ctx,sel)=>{try{new Function("ctx","selector",code)(ctx,sel)}catch(e){}};rules.forEach(rule=>{if(rule.rae&&targeting.ads_enabled!==true)return;const res=rule.conds.map(c=>{const pvRaw=targeting[c.targetKey],pvs=Array.isArray(pvRaw)?pvRaw.map(v=>String(v).toLowerCase().trim()):[String(pvRaw||"").toLowerCase().trim()],rvs=c.value.split(",").map(v=>v.trim().toLowerCase());switch(c.operator){case "equals":return rvs.some(rv=>pvs.includes(rv));case "not_equals":return rvs.every(rv=>!pvs.includes(rv));case "contains":return rvs.some(rv=>pvs.some(pv=>pv.indexOf(rv)>-1));case "not_contains":return rvs.every(rv=>pvs.every(pv=>pv.indexOf(rv)===-1));}return false});if(rule.lOp==="OR"?res.some(r=>r):res.every(r=>r)){inject(rule.sel,rule.act);if(rule.js){const ex=()=>run(rule.js,targeting,rule.sel);if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",ex);else ex()}}})}catch(e){}}();`;
+
+  return new Response(script, { headers });
 };

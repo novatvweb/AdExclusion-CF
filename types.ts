@@ -48,8 +48,10 @@ export interface BlacklistRule {
   logicalOperator: LogicalOperator;
   targetElementSelector: string;
   action: ActionType;
-  customJs?: string; // New field for JS Injection
+  customJs?: string;
   isActive: boolean;
   respectAdsEnabled: boolean;
+  startDate?: number; // Unix timestamp ms
+  endDate?: number;   // Unix timestamp ms
   createdAt: number;
 }
