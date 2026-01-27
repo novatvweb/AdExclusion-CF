@@ -125,7 +125,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-indigo-50/30 border border-indigo-100/50 rounded-2xl">
         <div className="group">
-          <label className="block text-[10px] font-black text-indigo-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">Start Date (Lokalno vrijeme HR)</label>
+          <label className="block text-[10px] font-black text-indigo-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">Početak</label>
           <div className="relative">
             <input
               type="datetime-local"
@@ -137,7 +137,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
           </div>
         </div>
         <div className="group">
-          <label className="block text-[10px] font-black text-indigo-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">End Date (Lokalno vrijeme HR)</label>
+          <label className="block text-[10px] font-black text-indigo-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">Kraj</label>
           <div className="relative">
             <input
               type="datetime-local"
