@@ -21,13 +21,19 @@ export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle, o
   const now = Date.now();
 
   const getScheduleStatus = (rule: BlacklistRule) => {
-    if (!rule.startDate && !rule.endDate) return { label: 'Always Active', color: 'emerald', icon: 'check' };
+    if (!rule.startDate && !rule.endDate) return { label: 'Stalno Aktivno', color: 'emerald', icon: 'check' };
     
     if (rule.startDate && now < rule.startDate) {
       const diff = rule.startDate - now;
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const days = Math.floor(hours / 24);
+      
+      let label = 'Počinje uskoro';
+      if (days > 0) label = `Počinje za ${days}d`;
+      else if (hours > 0) label = `Počinje za ${hours}h`;
+
       return { 
-        label: days > 0 ? `Počinje za ${days}d` : 'Počinje uskoro', 
+        label: label, 
         color: 'indigo', 
         icon: 'clock' 
       };
@@ -39,9 +45,15 @@ export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle, o
     
     if (rule.endDate) {
       const diff = rule.endDate - now;
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const days = Math.floor(hours / 24);
+
+      let label = 'Aktivno (do danas)';
+      if (days > 0) label = `Istječe za ${days}d`;
+      else if (hours > 0) label = `Istječe za ${hours}h`;
+
       return { 
-        label: days > 0 ? `Istječe za ${days}d` : 'Istječe danas', 
+        label: label, 
         color: 'emerald', 
         icon: 'calendar-check' 
       };
@@ -124,7 +136,7 @@ export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle, o
                       <React.Fragment key={i}>
                         <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
                           <span className="text-[8px] font-black text-indigo-600 bg-slate-50 px-2 py-1 uppercase tracking-tighter border-r border-slate-100">
-                            {TARGETING_KEYS.find(k => k.value === c.targetKey)?.label.split(' (*.)')[1] || c.targetKey}
+                            {TARGETING_KEYS.find(k => k.value === c.targetKey)?.label.split(' (')[0] || c.targetKey}
                           </span>
                           <span className="text-[10px] font-black text-slate-400 px-1.5 bg-slate-50/50 border-r border-slate-100 min-w-[20px] text-center">
                             {OPERATOR_SYMBOLS[c.operator] || '?'}

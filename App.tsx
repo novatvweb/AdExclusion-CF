@@ -59,31 +59,36 @@ const App = () => {
   };
 
   const generateProductionScript = (rulesToPublish: BlacklistRule[], env: 'prod' | 'dev') => {
+    // Spremamo i scheduling podatke (s=start, e=end) u payload skripte
     const config = rulesToPublish.map(r => ({
-      name: r.name,
-      conds: r.conditions,
-      lOp: r.logicalOperator,
-      sel: r.targetElementSelector,
-      act: r.action || 'hide',
+      n: r.name,
+      c: r.conditions,
+      lo: r.logicalOperator,
+      s: r.targetElementSelector,
+      a: r.action || 'hide',
       rae: !!r.respectAdsEnabled,
-      active: r.isActive,
-      js: r.customJs ? r.customJs : undefined
-    })).filter(r => r.active);
+      act: r.isActive,
+      js: r.customJs ? r.customJs : undefined,
+      sd: r.startDate, // start date ms
+      ed: r.endDate    // end date ms
+    })).filter(r => r.act);
 
-    const configJson = JSON.stringify(config, null, 2);
+    const configJson = JSON.stringify(config);
     const croTime = formatCroTime(new Date());
 
     return `
 /**
- * AdExclusion Engine v2.6 [${env.toUpperCase()}]
+ * AdExclusion Engine v2.7 [${env.toUpperCase()}]
  * Generated (Zagreb Time): ${croTime}
- * Edge-Filtering Enabled: YES
+ * Edge-Filtering: YES | Client-Scheduling: YES
  */
 !function() {
   try {
     const rules = ${configJson};
     const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
     if (!targeting) return;
+
+    const now = Date.now();
 
     const inject = (sel, action) => {
        const s = document.createElement("style");
@@ -94,33 +99,38 @@ const App = () => {
     };
     
     const runJs = (code, ctx, sel) => {
-       try { new Function("ctx", "selector", code)(ctx, sel); } catch(err) { console.warn("AdEx JS Error:", err); }
+       try { new Function("ctx", "selector", code)(ctx, sel); } catch(err) {}
     };
 
     rules.forEach(rule => {
+       // CLIENT-SIDE SCHEDULING (Provjera vremena u browseru omogućuje dugi cache na Edgeu)
+       if (rule.sd && now < rule.sd) return;
+       if (rule.ed && now > rule.ed) return;
+
        if (rule.rae && targeting.ads_enabled !== true) return;
-       const results = rule.conds.map(cond => {
+       
+       const results = rule.c.map(cond => {
           const pageValRaw = targeting[cond.targetKey];
           const pageVals = Array.isArray(pageValRaw) 
             ? pageValRaw.map(v => String(v).toLowerCase().trim()) 
             : [String(pageValRaw || "").toLowerCase().trim()];
           const ruleVals = cond.value.split(",").map(v => v.trim().toLowerCase());
-          let isCondMet = false;
+          let met = false;
           switch (cond.operator) {
-            case "equals": isCondMet = ruleVals.some(rv => pageVals.includes(rv)); break;
-            case "not_equals": isCondMet = ruleVals.every(rv => !pageVals.includes(rv)); break;
-            case "contains": isCondMet = ruleVals.some(rv => pageVals.some(pv => pv.indexOf(rv) > -1)); break;
-            case "not_contains": isCondMet = ruleVals.every(rv => pageVals.every(pv => pv.indexOf(rv) === -1)); break;
+            case "equals": met = ruleVals.some(rv => pageVals.includes(rv)); break;
+            case "not_equals": met = ruleVals.every(rv => !pageVals.includes(rv)); break;
+            case "contains": met = ruleVals.some(rv => pageVals.some(pv => pv.indexOf(rv) > -1)); break;
+            case "not_contains": met = ruleVals.every(rv => pageVals.every(pv => pv.indexOf(rv) === -1)); break;
           }
-          return isCondMet;
+          return met;
        });
 
-       let isMatch = rule.lOp === "OR" ? results.some(r => r === true) : results.every(r => r === true);
+       const isMatch = rule.lo === "OR" ? results.some(r => r) : results.every(r => r);
 
        if (isMatch) {
-          inject(rule.sel, rule.act);
+          inject(rule.s, rule.a);
           if (rule.js) {
-             const exec = () => runJs(rule.js, targeting, rule.sel);
+             const exec = () => runJs(rule.js, targeting, rule.s);
              if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", exec);
              else exec();
           }
@@ -132,8 +142,8 @@ const App = () => {
 
   const publish = async (env: 'prod' | 'dev') => {
     const confirmMsg = env === 'prod' 
-      ? 'PAŽNJA: Jeste li sigurni da želite objaviti promjene na PRODUKCIJU? Ovo utječe na sve posjetitelje.' 
-      : 'Želite li objaviti pravila na DEVELOPMENT okruženje za testiranje?';
+      ? 'PAŽNJA: Objava na PRODUKCIJU. Skripta će biti zakeširana na CF Edge serverima.' 
+      : 'Objavi na DEV okruženje?';
       
     if (!confirm(confirmMsg)) return;
     
@@ -145,9 +155,9 @@ const App = () => {
       const purgeResult = await dataService.purgeCache(env);
       
       if (purgeResult.success) {
-        alert(`🚀 USPJEH! Pravila su objavljena na ${env.toUpperCase()} Edge i cache je očišćen.`);
+        alert(`🚀 USPJEŠNO! Skripta je ažurirana na Edge-u (${env.toUpperCase()}) i cache je invalidiran.`);
       } else {
-        alert(`⚠️ Pravila spremljena, ali PURGE nije uspio: ${purgeResult.message || 'Provjerite CF postavke.'}`);
+        alert(`⚠️ Spremljeno, ali CF Purge nije uspio. Cache će se sam osvježiti kroz neko vrijeme.`);
       }
     } catch (e) { 
       alert('Kritična greška pri objavljivanju.'); 
@@ -299,7 +309,7 @@ const App = () => {
       <footer className="mt-auto border-t border-slate-200 bg-white py-6 px-8 hidden md:block">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
-            <div className="bg-slate-900 text-white p-1.5 px-3 font-black text-[10px] rounded uppercase select-none">v2.6.0 STABLE</div>
+            <div className="bg-slate-900 text-white p-1.5 px-3 font-black text-[10px] rounded uppercase select-none">v2.7.0 STABLE</div>
             <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wide">© {new Date().getFullYear()} NOVA TV d.d. • AdOps & Engineering</p>
           </div>
           <div className="flex gap-10">
