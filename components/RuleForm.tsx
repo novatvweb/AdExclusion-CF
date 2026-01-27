@@ -11,6 +11,25 @@ interface RuleFormProps {
   canManageJs: boolean;
 }
 
+/**
+ * Helper koji pretvara timestamp u string kompatibilan s datetime-local inputom
+ * koristeći isključivo lokalno vrijeme (Europe/Zagreb) bez UTC transformacije.
+ */
+const toLocalDateTimeString = (timestamp: number | undefined): string => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  
+  // Ručna konstrukcija ISO-like stringa bez UTC offseta
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1);
+  const d = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const mm = pad(date.getMinutes());
+  
+  return `${y}-${m}-${d}T${hh}:${mm}`;
+};
+
 export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialData, canManageJs }) => {
   const [name, setName] = useState(initialData?.name || '');
   const [logicalOperator, setLogicalOperator] = useState<LogicalOperator>(initialData?.logicalOperator || 'AND');
@@ -21,8 +40,11 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   const [action, setAction] = useState<ActionType>(initialData?.action || 'hide');
   const [customJs, setCustomJs] = useState(initialData?.customJs || '');
   const [respectAdsEnabled, setRespectAdsEnabled] = useState(initialData?.respectAdsEnabled ?? true);
-  const [startDate, setStartDate] = useState<string>(initialData?.startDate ? new Date(initialData.startDate).toISOString().slice(0, 16) : '');
-  const [endDate, setEndDate] = useState<string>(initialData?.endDate ? new Date(initialData.endDate).toISOString().slice(0, 16) : '');
+  
+  // Koristimo helper koji ne oduzima sate
+  const [startDate, setStartDate] = useState<string>(toLocalDateTimeString(initialData?.startDate));
+  const [endDate, setEndDate] = useState<string>(toLocalDateTimeString(initialData?.endDate));
+  
   const [showAdvanced, setShowAdvanced] = useState(!!initialData?.customJs && canManageJs);
 
   const addCondition = () => {
@@ -47,6 +69,8 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
       alert("Molimo popunite sva obavezna polja.");
       return;
     }
+
+    // Pri pretvaranju natrag u timestamp, Date konstruktor će koristiti lokalno vrijeme preglednika (HR)
     onSubmit({
       name,
       conditions,
@@ -66,7 +90,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
         <div>
           <h2 className="text-[18px] md:text-[17px] font-black uppercase tracking-tight text-slate-900 flex items-center gap-3">
             <span className="w-1.5 h-6 bg-indigo-600 rounded-full shadow-[0_0_8px_rgba(79,70,229,0.3)]"></span>
-            {initialData?.id ? 'Konfiguracija Pravila' : 'Novo Izuzeće'}
+            {initialData?.id ? 'Uredi Pravilo' : 'Novo Izuzeće'}
           </h2>
         </div>
       </div>
@@ -78,7 +102,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="npr. Heineken Euro 2024"
+            placeholder="npr. Heineken Euro 2026"
             className="w-full h-14 md:h-12 bg-slate-50 border border-slate-200 px-4 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner"
           />
         </div>
@@ -99,30 +123,29 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
         </div>
       </div>
 
-      {/* Scheduling Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-indigo-50/30 border border-indigo-100/50 rounded-2xl">
         <div className="group">
-          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">Start Date (Opcionalno)</label>
+          <label className="block text-[10px] font-black text-indigo-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">Start Date (Lokalno vrijeme HR)</label>
           <div className="relative">
             <input
               type="datetime-local"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full h-12 bg-slate-50 border border-slate-200 px-4 rounded-xl text-[12px] font-bold outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner"
+              className="w-full h-12 bg-white border border-slate-200 px-4 rounded-xl text-[12px] font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
             />
-            {startDate && <button onClick={() => setStartDate('')} type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500">×</button>}
+            {startDate && <button onClick={() => setStartDate('')} type="button" className="absolute right-10 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500 text-lg">×</button>}
           </div>
         </div>
         <div className="group">
-          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">End Date (Opcionalno)</label>
+          <label className="block text-[10px] font-black text-indigo-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">End Date (Lokalno vrijeme HR)</label>
           <div className="relative">
             <input
               type="datetime-local"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full h-12 bg-slate-50 border border-slate-200 px-4 rounded-xl text-[12px] font-bold outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner"
+              className="w-full h-12 bg-white border border-slate-200 px-4 rounded-xl text-[12px] font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
             />
-            {endDate && <button onClick={() => setEndDate('')} type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500">×</button>}
+            {endDate && <button onClick={() => setEndDate('')} type="button" className="absolute right-10 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500 text-lg">×</button>}
           </div>
         </div>
       </div>
