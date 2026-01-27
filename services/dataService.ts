@@ -26,7 +26,7 @@ export const dataService = {
     }
   },
 
-  async saveRules(rules: any[], script?: string) {
+  async saveRules(rules: any[], script?: string, target: 'prod' | 'dev' = 'prod') {
     if (IS_DEV) return { success: true };
     try {
       const response = await fetch('/api/sync', {
@@ -35,7 +35,7 @@ export const dataService = {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authService.getToken()}`
         },
-        body: JSON.stringify({ rules, script })
+        body: JSON.stringify({ rules, script, target })
       });
       return response.json();
     } catch (e) {
@@ -70,22 +70,25 @@ export const dataService = {
       }
 
       if (!contentType || !contentType.includes("application/json")) {
-        return { success: false, message: "Server nije vratio JSON (vjerojatno Cloudflare 5xx greška)" };
+        return { success: false, message: "Server nije vratio JSON" };
       }
 
       return await response.json();
     } catch (e: any) {
-      console.error("Scrape network error:", e);
-      return { success: false, message: `Mrežna greška: ${e.message || "Nepoznata greška"}` };
+      return { success: false, message: `Mrežna greška: ${e.message}` };
     }
   },
 
-  async purgeCache() {
+  async purgeCache(target: 'prod' | 'dev' = 'prod') {
     if (IS_DEV) return { success: true };
     try {
       const response = await fetch('/api/purge', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${authService.getToken()}` }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authService.getToken()}` 
+        },
+        body: JSON.stringify({ target })
       });
       return response.json();
     } catch (e) {
