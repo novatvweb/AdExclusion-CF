@@ -14,20 +14,16 @@ const App = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingRule, setEditingRule] = useState<BlacklistRule | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isPublishing, setIsPublishing] = useState(false);
+  const [isPublishing, setIsPublishing] = useState<null | 'prod' | 'dev'>(null);
   const [showDevTools, setShowDevTools] = useState(false);
   const [showSandbox, setShowSandbox] = useState(true);
   
-  // State for permissions
   const [canManageJs, setCanManageJs] = useState(() => authService.canEditCode());
-  
   const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
-      // Refresh permissions on auth state change
       setCanManageJs(authService.canEditCode());
-      
       dataService.getRules().then(data => {
         setRules(data.rules || []);
         setLoading(false);
@@ -40,20 +36,17 @@ const App = () => {
       const headerOffset = 80;
       const elementPosition = formRef.current.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-      });
+      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
     }
   }, [isAdding, editingRule]);
 
-  const saveRules = async (newRules: BlacklistRule[]) => {
+  const saveRulesToWorkspace = async (newRules: BlacklistRule[]) => {
     setRules(newRules);
-    try { await dataService.saveRules(newRules); } catch (e) { console.error(e); }
+    // Silent background save to keep workspace updated
+    try { await dataService.saveRules(newRules, undefined, 'prod'); } catch (e) { console.error(e); }
   };
 
-  const generateProductionScript = (rulesToPublish: BlacklistRule[]) => {
+  const generateProductionScript = (rulesToPublish: BlacklistRule[], env: 'prod' | 'dev') => {
     const config = rulesToPublish.map(r => ({
       name: r.name,
       conds: r.conditions,
@@ -67,102 +60,51 @@ const App = () => {
 
     const configJson = JSON.stringify(config, null, 2);
 
-    // DEBUG MODE ENABLED:
-    // Script is now un-minified and contains detailed comments explaining the logic flow.
     return `
 /**
- * AdExclusion Engine v2.5
+ * AdExclusion Engine v2.5 [${env.toUpperCase()}]
  * Generated: ${new Date().toISOString()}
- * Mode: Production (Un-minified for Debugging)
  */
 !function() {
   try {
-    // Configuration Payload
     const rules = ${configJson};
-    
-    // Get Page Context
     const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
-    
-    if (!targeting) {
-      console.warn("AdEx: Targeting object missing.");
-      return;
-    }
+    if (!targeting) return;
 
-    // Helper: CSS Injection
     const inject = (sel, action) => {
        const s = document.createElement("style");
        const disp = action === "show" ? "block" : "none";
        const vis = action === "show" ? "visible" : "hidden";
-       
        s.innerHTML = sel + " { display: " + disp + " !important; visibility: " + vis + " !important; }";
        document.head.appendChild(s);
-       console.log("AdEx Action Applied:", action, "on", sel);
     };
     
-    // Helper: JS Injection
     const runJs = (code, ctx, sel) => {
-       try { 
-         new Function("ctx", "selector", code)(ctx, sel); 
-       } catch(err) { 
-         console.warn("AdEx JS Error:", err); 
-       }
+       try { new Function("ctx", "selector", code)(ctx, sel); } catch(err) { console.warn("AdEx JS Error:", err); }
     };
 
-    // Main Logic Loop
     rules.forEach(rule => {
-       console.debug("AdEx Checking Rule:", rule.name);
-
-       // 1. Check Global Ads Enabled requirement
-       if (rule.rae && targeting.ads_enabled !== true) {
-         console.debug("AdEx Skipped: Ads disabled globally");
-         return;
-       }
-
-       // 2. Evaluate all conditions against page targeting
+       if (rule.rae && targeting.ads_enabled !== true) return;
        const results = rule.conds.map(cond => {
           const pageValRaw = targeting[cond.targetKey];
-          
-          // Normalize page values to array of lowercased strings
           const pageVals = Array.isArray(pageValRaw) 
             ? pageValRaw.map(v => String(v).toLowerCase().trim()) 
             : [String(pageValRaw || "").toLowerCase().trim()];
-          
-          // Normalize rule values
           const ruleVals = cond.value.split(",").map(v => v.trim().toLowerCase());
-
           let isCondMet = false;
           switch (cond.operator) {
-            case "equals": 
-              // True if ANY rule val matches ANY page val
-              isCondMet = ruleVals.some(rv => pageVals.includes(rv));
-              break;
-            case "not_equals": 
-              // True if ALL rule vals are NOT in page vals
-              isCondMet = ruleVals.every(rv => !pageVals.includes(rv));
-              break;
-            case "contains": 
-              isCondMet = ruleVals.some(rv => pageVals.some(pv => pv.indexOf(rv) > -1));
-              break;
-            case "not_contains": 
-              isCondMet = ruleVals.every(rv => pageVals.every(pv => pv.indexOf(rv) === -1));
-              break;
+            case "equals": isCondMet = ruleVals.some(rv => pageVals.includes(rv)); break;
+            case "not_equals": isCondMet = ruleVals.every(rv => !pageVals.includes(rv)); break;
+            case "contains": isCondMet = ruleVals.some(rv => pageVals.some(pv => pv.indexOf(rv) > -1)); break;
+            case "not_contains": isCondMet = ruleVals.every(rv => pageVals.every(pv => pv.indexOf(rv) === -1)); break;
           }
           return isCondMet;
        });
 
-       // 3. Apply Logical Operator (AND vs OR)
-       let isMatch = false;
-       if (rule.lOp === "OR") {
-          isMatch = results.some(r => r === true);
-       } else {
-          isMatch = results.every(r => r === true);
-       }
+       let isMatch = rule.lOp === "OR" ? results.some(r => r === true) : results.every(r => r === true);
 
-       // 4. Execute Action if matched
        if (isMatch) {
-          console.log("AdEx MATCH FOUND:", rule.name);
           inject(rule.sel, rule.act);
-          
           if (rule.js) {
              const exec = () => runJs(rule.js, targeting, rule.sel);
              if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", exec);
@@ -170,35 +112,34 @@ const App = () => {
           }
        }
     });
-
-  } catch (err) {
-    console.error("AdExclusion Engine Critical Error:", err);
-  }
+  } catch (err) {}
 }();`;
   };
 
-  const publish = async () => {
-    if (!confirm('Jeste li sigurni da želite objaviti trenutna pravila na produkciju?')) return;
-    setIsPublishing(true);
+  const publish = async (env: 'prod' | 'dev') => {
+    const confirmMsg = env === 'prod' 
+      ? 'PAŽNJA: Jeste li sigurni da želite objaviti promjene na PRODUKCIJU? Ovo utječe na sve posjetitelje.' 
+      : 'Želite li objaviti pravila na DEVELOPMENT okruženje za testiranje?';
+      
+    if (!confirm(confirmMsg)) return;
     
-    // Generiramo neminificiranu skriptu za Edge
-    const script = generateProductionScript(rules);
+    setIsPublishing(env);
+    const script = generateProductionScript(rules, env);
     
     try {
-      await dataService.saveRules(rules, script);
-      await dataService.purgeCache();
-      alert('🚀 USPJEH! Pravila su objavljena na Edge (Cloudflare KV).');
+      await dataService.saveRules(rules, script, env);
+      await dataService.purgeCache(env);
+      alert(`🚀 USPJEH! Pravila su objavljena na ${env.toUpperCase()} Edge.`);
     } catch (e) { 
       alert('Greška pri objavljivanju.'); 
-      console.error(e);
     } 
-    finally { setIsPublishing(false); }
+    finally { setIsPublishing(null); }
   };
 
   const handleFormSubmit = (ruleData: any) => {
     if (editingRule) {
       const updatedRules = rules.map(r => r.id === editingRule.id ? { ...r, ...ruleData } : r);
-      saveRules(updatedRules);
+      saveRulesToWorkspace(updatedRules);
     } else {
       const newRule: BlacklistRule = { 
         ...ruleData, 
@@ -206,7 +147,7 @@ const App = () => {
         createdAt: Date.now(), 
         isActive: true 
       };
-      saveRules([newRule, ...rules]);
+      saveRulesToWorkspace([newRule, ...rules]);
     }
     setIsAdding(false);
     setEditingRule(null);
@@ -228,10 +169,25 @@ const App = () => {
         
         <div className="flex items-center gap-2 md:gap-3">
           <div className="hidden md:flex items-center gap-3">
-            <button onClick={publish} disabled={isPublishing} className="bg-emerald-600 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-emerald-700 disabled:opacity-50 rounded-lg flex items-center gap-2 shadow-sm">
-              🚀 {isPublishing ? 'PUBLISHING...' : 'OBJAVI NA EDGE'}
+            {canManageJs && (
+              <button 
+                onClick={() => publish('dev')} 
+                disabled={!!isPublishing} 
+                className="bg-indigo-600 text-white px-4 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-indigo-700 disabled:opacity-50 rounded-lg flex items-center gap-2 shadow-sm"
+                title="Objavi na /exclusions/sponsorship_exclusions-dev.js"
+              >
+                🛠️ {isPublishing === 'dev' ? '...' : 'OBJAVI NA DEV'}
+              </button>
+            )}
+            <button 
+              onClick={() => publish('prod')} 
+              disabled={!!isPublishing} 
+              className="bg-emerald-600 text-white px-4 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-emerald-700 disabled:opacity-50 rounded-lg flex items-center gap-2 shadow-sm"
+              title="Objavi na /exclusions/sponsorship_exclusions.js"
+            >
+              🚀 {isPublishing === 'prod' ? '...' : 'OBJAVI NA PROD'}
             </button>
-            <button onClick={() => { setEditingRule(null); setIsAdding(true); }} className="bg-slate-900 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-black rounded-lg shadow-sm">
+            <button onClick={() => { setEditingRule(null); setIsAdding(true); }} className="bg-slate-900 text-white px-4 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-black rounded-lg shadow-sm">
               + NOVO PRAVILO
             </button>
           </div>
@@ -243,23 +199,31 @@ const App = () => {
 
       {/* Mobile Floating Action Balloons */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60] md:hidden px-4 w-full max-w-sm">
+        {canManageJs && (
+          <button 
+            onClick={() => publish('dev')} 
+            disabled={!!isPublishing}
+            className="flex-1 bg-indigo-600/90 backdrop-blur-md text-white h-14 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 border border-white/20"
+          >
+            🛠️ DEV
+          </button>
+        )}
         <button 
-          onClick={publish} 
-          disabled={isPublishing}
-          className="flex-1 bg-emerald-600/90 backdrop-blur-md text-white h-14 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 border border-white/20 active:scale-95 transition-all"
+          onClick={() => publish('prod')} 
+          disabled={!!isPublishing}
+          className="flex-1 bg-emerald-600/90 backdrop-blur-md text-white h-14 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 border border-white/20"
         >
-          🚀 {isPublishing ? '...' : 'OBJAVI'}
+          🚀 PROD
         </button>
         <button 
           onClick={() => { setEditingRule(null); setIsAdding(true); }}
-          className="flex-1 bg-slate-900/90 backdrop-blur-md text-white h-14 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 border border-white/20 active:scale-95 transition-all"
+          className="flex-1 bg-slate-900/90 backdrop-blur-md text-white h-14 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 border border-white/20"
         >
-          <span className="text-lg">+</span> NOVO
+          + NOVO
         </button>
       </div>
 
       <main className="flex-1 max-w-7xl w-full mx-auto py-4 md:py-5 px-4 md:px-8 space-y-4">
-        {/* Editor Section */}
         {(isAdding || editingRule) && (
           <div ref={formRef} className="bg-white p-5 md:p-6 rounded-2xl shadow-xl border border-slate-200 animate-in fade-in slide-in-from-top-4 duration-400">
             <RuleForm 
@@ -271,36 +235,28 @@ const App = () => {
           </div>
         )}
 
-        {/* Rules Table Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <RuleList 
             rules={rules} 
             onEdit={(rule) => { setEditingRule(rule); setIsAdding(true); }}
-            onToggle={(id) => saveRules(rules.map(r => r.id === id ? { ...r, isActive: !r.isActive } : r))}
-            onDelete={(id) => { if(confirm('Jeste li sigurni?')) saveRules(rules.filter(r => r.id !== id)); }}
+            onToggle={(id) => saveRulesToWorkspace(rules.map(r => r.id === id ? { ...r, isActive: !r.isActive } : r))}
+            onDelete={(id) => { if(confirm('Jeste li sigurni?')) saveRulesToWorkspace(rules.filter(r => r.id !== id)); }}
           />
         </div>
 
-        {/* Simulator Section with Toggle */}
         <div className="pt-2">
           <button 
             onClick={() => setShowSandbox(!showSandbox)}
             className="flex items-center gap-3 text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-indigo-600 transition-all mb-3 px-2 group"
           >
-            <div className={`w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all group-hover:border-indigo-200 ${showSandbox ? 'rotate-180 bg-indigo-50 border-indigo-200 text-indigo-600 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : ''}`}>
+            <div className={`w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all group-hover:border-indigo-200 ${showSandbox ? 'rotate-180 bg-indigo-50 border-indigo-200 text-indigo-600' : ''}`}>
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
             </div>
             Simulator & Edge Preview Engine
           </button>
-          
-          {showSandbox && (
-            <div className="animate-in slide-in-from-bottom-2 duration-300">
-              <Sandbox rules={rules} />
-            </div>
-          )}
+          {showSandbox && <div className="animate-in slide-in-from-bottom-2 duration-300"><Sandbox rules={rules} /></div>}
         </div>
 
-        {/* Technical Details Section */}
         {canManageJs && (
           <div className="pt-2">
             <button 
@@ -312,13 +268,8 @@ const App = () => {
               </div>
               Integracijski Detalji & JS Kod
             </button>
-
             {showDevTools && (
               <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm animate-in slide-in-from-bottom-2 duration-300">
-                <h3 className="text-[11px] font-black uppercase text-slate-500 tracking-widest mb-4 px-1 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span>
-                  Pravila u realnom vremenu (Live JS Engine)
-                </h3>
                 <IntegrationPreview rules={rules} />
               </div>
             )}
@@ -329,15 +280,14 @@ const App = () => {
       <footer className="mt-auto border-t border-slate-200 bg-white py-6 px-8 hidden md:block">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
-            <div className="bg-slate-900 text-white p-1.5 px-3 font-black text-[10px] rounded uppercase select-none">v2.5.0 STABLE</div>
+            <div className="bg-slate-900 text-white p-1.5 px-3 font-black text-[10px] rounded uppercase select-none">v2.5.1 STABLE</div>
             <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wide">© {new Date().getFullYear()} NOVA TV d.d. • AdOps & Engineering</p>
           </div>
           <div className="flex gap-10">
             <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Edge Cluster</span>
-              <span className="text-[11px] font-bold text-emerald-600 uppercase flex items-center gap-1.5">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]"></span> 
-                Live & Healthy
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Endpoints</span>
+              <span className="text-[11px] font-bold text-emerald-600 uppercase">
+                PROD & DEV ACTIVE
               </span>
             </div>
             <div className="flex flex-col items-end">
