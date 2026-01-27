@@ -1,5 +1,4 @@
 
-// Added React, useState, and useMemo imports to fix "Cannot find name" errors
 import React, { useState, useMemo } from 'react';
 import { BlacklistRule, TargetingData, Operator, Condition } from '../types';
 import { dataService } from '../services/dataService.ts';
@@ -39,7 +38,6 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
     const actualRaw = data[cond.targetKey as keyof TargetingData];
     const isArrayField = Array.isArray(actualRaw);
     
-    // Convert actual data to array of strings for consistent comparison
     const actualItems = isArrayField 
       ? (actualRaw as string[]).map(v => processVal(v))
       : [processVal(actualRaw)];
@@ -47,23 +45,15 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
     let matchedValues: string[] = [];
 
     if (cond.operator === Operator.EQUALS) {
-      // Logic: ANY input value matches ANY actual value
       matchedValues = inputValues.filter(iv => actualItems.includes(iv));
       return { success: matchedValues.length > 0, matches: matchedValues, cond };
-
     } else if (cond.operator === Operator.NOT_EQUALS) {
-      // Logic: ALL input values must NOT be present in actual values
-      // If any input value is found in actual items, the condition fails.
       const foundForbidden = inputValues.some(iv => actualItems.includes(iv));
       return { success: !foundForbidden, matches: [], cond };
-
     } else if (cond.operator === Operator.CONTAINS) {
-      // Logic: ANY input value is a substring of ANY actual value
       matchedValues = inputValues.filter(iv => actualItems.some(ai => ai.includes(iv)));
       return { success: matchedValues.length > 0, matches: matchedValues, cond };
-
     } else if (cond.operator === Operator.NOT_CONTAINS) {
-      // Logic: ALL input values must NOT be substrings of ANY actual value
       const foundForbidden = inputValues.some(iv => actualItems.some(ai => ai.includes(iv)));
       return { success: !foundForbidden, matches: [], cond };
     }
@@ -71,8 +61,14 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
   };
 
   const activeMatches = useMemo(() => {
+    const now = Date.now();
     return rules.filter(rule => {
       if (!rule.isActive) return false;
+      
+      // Scheduling Check (Simulation)
+      if (rule.startDate && now < rule.startDate) return false;
+      if (rule.endDate && now > rule.endDate) return false;
+
       const conditionResults = (rule.conditions || []).map(cond => checkCondition(cond, mockData));
       if (conditionResults.length === 0) return false;
       
@@ -81,7 +77,6 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
         : conditionResults.every(r => r.success);
 
       if (isSuccess) {
-        // Spremanje detaljnih rezultata u privremeni property za render
         (rule as any)._logicDebug = conditionResults;
         return true;
       }
@@ -201,7 +196,6 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {activeMatches.map(m => (
                 <div key={m.id} className="bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-2xl overflow-hidden group transition-all hover:border-slate-700">
-                  {/* Card Header */}
                   <div className="p-4 bg-slate-800/50 border-b border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-3 truncate">
                       <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
@@ -212,7 +206,6 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
                     </span>
                   </div>
 
-                  {/* Logic Visualization Section */}
                   <div className="p-5 space-y-4">
                     <div className="space-y-2">
                       {(m as any)._logicDebug?.map((res: ConditionResult, idx: number) => (
@@ -232,11 +225,6 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
                                </div>
                                <div className="text-[11px] font-bold text-slate-200 truncate italic">"{res.cond.value}"</div>
                             </div>
-                            {res.matches.length > 0 && (
-                              <div className="hidden sm:block text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
-                                 MATCH FOUND
-                              </div>
-                            )}
                           </div>
                           {idx < (m as any)._logicDebug.length - 1 && (
                             <div className="flex justify-center -my-1">
@@ -256,7 +244,6 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
                       </code>
                     </div>
 
-                    {/* Simulation Log for Custom JS */}
                     {m.customJs && (
                        <div className="mt-4 border-t border-white/10 pt-4">
                           <div className="flex items-center gap-2 mb-2">

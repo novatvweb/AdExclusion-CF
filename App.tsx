@@ -8,6 +8,19 @@ import { IntegrationPreview } from './components/IntegrationPreview.tsx';
 import { Sandbox } from './components/Sandbox.tsx';
 import { BlacklistRule } from './types.ts';
 
+const formatCroTime = (date: Date) => {
+  return new Intl.DateTimeFormat('hr-HR', {
+    timeZone: 'Europe/Zagreb',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(date);
+};
+
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => authService.isAuthenticated());
   const [rules, setRules] = useState<BlacklistRule[]>([]);
@@ -58,11 +71,13 @@ const App = () => {
     })).filter(r => r.active);
 
     const configJson = JSON.stringify(config, null, 2);
+    const croTime = formatCroTime(new Date());
 
     return `
 /**
- * AdExclusion Engine v2.5 [${env.toUpperCase()}]
- * Generated: ${new Date().toISOString()}
+ * AdExclusion Engine v2.6 [${env.toUpperCase()}]
+ * Generated (Zagreb Time): ${croTime}
+ * Edge-Filtering Enabled: YES
  */
 !function() {
   try {
@@ -284,7 +299,7 @@ const App = () => {
       <footer className="mt-auto border-t border-slate-200 bg-white py-6 px-8 hidden md:block">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
-            <div className="bg-slate-900 text-white p-1.5 px-3 font-black text-[10px] rounded uppercase select-none">v2.5.1 STABLE</div>
+            <div className="bg-slate-900 text-white p-1.5 px-3 font-black text-[10px] rounded uppercase select-none">v2.6.0 STABLE</div>
             <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wide">© {new Date().getFullYear()} NOVA TV d.d. • AdOps & Engineering</p>
           </div>
           <div className="flex gap-10">
