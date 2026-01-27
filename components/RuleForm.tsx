@@ -8,9 +8,10 @@ interface RuleFormProps {
   onSubmit: (rule: Omit<BlacklistRule, 'id' | 'createdAt' | 'isActive'>) => void;
   onCancel: () => void;
   initialData?: Partial<BlacklistRule>;
+  canManageJs: boolean;
 }
 
-export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialData }) => {
+export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialData, canManageJs }) => {
   const [name, setName] = useState(initialData?.name || '');
   const [logicalOperator, setLogicalOperator] = useState<LogicalOperator>(initialData?.logicalOperator || 'AND');
   const [conditions, setConditions] = useState<Condition[]>(
@@ -18,9 +19,10 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   );
   const [selector, setSelector] = useState(initialData?.targetElementSelector || '');
   const [action, setAction] = useState<ActionType>(initialData?.action || 'hide');
+  // Zadržavamo customJs u state-u čak i ako je editor skriven, da ga ne prebrišemo
   const [customJs, setCustomJs] = useState(initialData?.customJs || '');
   const [respectAdsEnabled, setRespectAdsEnabled] = useState(initialData?.respectAdsEnabled ?? true);
-  const [showAdvanced, setShowAdvanced] = useState(!!initialData?.customJs);
+  const [showAdvanced, setShowAdvanced] = useState(!!initialData?.customJs && canManageJs);
 
   const addCondition = () => {
     setConditions([...conditions, { targetKey: 'section', operator: Operator.EQUALS, value: '', caseSensitive: false }]);
@@ -50,7 +52,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
       logicalOperator,
       targetElementSelector: selector,
       action,
-      customJs,
+      customJs, // Šaljemo state, bio on promijenjen ili ne
       respectAdsEnabled
     });
   };
@@ -123,12 +125,12 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
           </div>
         </div>
 
-        {/* Condition Rows - Redesigned for Mobile (2 Rows per Condition) */}
+        {/* Condition Rows */}
         <div className="space-y-6 md:space-y-3">
           {conditions.map((cond, index) => (
             <div key={index} className="flex flex-col md:flex-row gap-3 md:items-center animate-in fade-in slide-in-from-left-2 duration-300 bg-white md:bg-transparent p-4 md:p-0 rounded-2xl border border-slate-200 md:border-none shadow-sm md:shadow-none">
               
-              {/* Key & Op Selection Group (Row 1 on Mobile) */}
+              {/* Key & Op Selection Group */}
               <div className="flex gap-2.5 w-full md:flex-[2.2]">
                 <div className="flex-1 relative h-12">
                   <select
@@ -152,7 +154,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
                 </div>
               </div>
 
-              {/* Value Input Group (Row 2 on Mobile) */}
+              {/* Value Input Group */}
               <div className="flex gap-2.5 w-full md:flex-[2.8]">
                 <div className="flex-1 relative flex items-center h-12">
                   <input
@@ -169,7 +171,6 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
                       className={`w-9 h-9 flex items-center justify-center rounded-lg text-[10px] font-black transition-all ${cond.caseSensitive ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 bg-white/80 border border-slate-200 hover:text-slate-600'}`}
                       title="Case Sensitive"
                     >Aa</button>
-                    {/* Delete button integrated on mobile inside input area */}
                     <button 
                       type="button" 
                       onClick={() => removeCondition(index)} 
@@ -179,7 +180,6 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
                     </button>
                   </div>
                 </div>
-                {/* Desktop Delete Button (Visible only on md+) */}
                 <button 
                   type="button" 
                   onClick={() => removeCondition(index)} 
@@ -210,29 +210,31 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
           />
         </div>
 
-        {/* Advanced: JS Injection Toggle & Editor */}
-        <div className="pt-2">
-           <button 
-             type="button"
-             onClick={() => setShowAdvanced(!showAdvanced)}
-             className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 hover:text-indigo-600 transition-colors tracking-widest"
-           >
-              <span className={`transition-transform duration-200 ${showAdvanced ? 'rotate-90' : ''}`}>▶</span>
-              Napredno: Custom JavaScript Injection
-           </button>
-           
-           {showAdvanced && (
-             <div className="mt-4 animate-in slide-in-from-top-2 duration-300">
-                <div className="bg-slate-900 rounded-xl p-4 border border-slate-800 shadow-inner">
-                   <CodeEditor 
-                     value={customJs}
-                     onChange={setCustomJs}
-                     placeholder="// Unesite JS kod koji će se izvršiti ako su uvjeti zadovoljeni.&#10;// Primjer: console.log('Targeting matched!', ctx.site);"
-                   />
-                </div>
-             </div>
-           )}
-        </div>
+        {/* Advanced: JS Injection Toggle & Editor - RESTRICTED TO ADMIN */}
+        {canManageJs && (
+          <div className="pt-2">
+             <button 
+               type="button"
+               onClick={() => setShowAdvanced(!showAdvanced)}
+               className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 hover:text-indigo-600 transition-colors tracking-widest"
+             >
+                <span className={`transition-transform duration-200 ${showAdvanced ? 'rotate-90' : ''}`}>▶</span>
+                Napredno: Custom JavaScript Injection
+             </button>
+             
+             {showAdvanced && (
+               <div className="mt-4 animate-in slide-in-from-top-2 duration-300">
+                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-800 shadow-inner">
+                     <CodeEditor 
+                       value={customJs}
+                       onChange={setCustomJs}
+                       placeholder="// Unesite JS kod koji će se izvršiti ako su uvjeti zadovoljeni.&#10;// Primjer: console.log('Targeting matched!', ctx.site);"
+                     />
+                  </div>
+               </div>
+             )}
+          </div>
+        )}
         
         <div className="flex flex-col md:flex-row gap-4 pt-4">
           <button type="submit" className="w-full md:flex-[2.5] h-16 md:h-14 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-[0.98] transition-all order-1 md:order-2">
