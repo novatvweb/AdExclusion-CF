@@ -5,7 +5,7 @@
 
 ## ⚠️ KRITIČNO: Setup Okruženja
 
-Kako bi imali potpunu kontrolu nad PROD i DEV okruženjima, **ne koristimo `wrangler.toml`** u repozitoriju.
+Kako bi imali potpunu kontrolu nad PROD i STAGE okruženjima, **ne koristimo `wrangler.toml`** u repozitoriju.
 
 1. **Obrišite `wrangler.toml`** ako postoji.
 2. Za lokalni razvoj koristimo **`wrangler.local.toml`**.
