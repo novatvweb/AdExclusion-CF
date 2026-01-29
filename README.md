@@ -55,8 +55,12 @@ Budući da je ovo Pages projekt, "Cron Trigger" postavljamo kao vanjski poziv il
 ```javascript
 export default {
   async scheduled(event, env, ctx) {
-    // Zamijenite s vašom domenom
+    // Odaberite ispravan target ovisno o okruženju:
+    // PROD: ?target=prod
+    // STAGE/DEV: ?target=stage
+    
     const url = "https://adexclusion.dnevnik.hr/api/scheduler?target=prod"; 
+    
     await fetch(url, {
       headers: {
         "x-cron-secret": "VAŠ_CRON_SECRET_OVDJE" // Mora odgovarati onome u Env Variables

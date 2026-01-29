@@ -25,35 +25,66 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const authHeader = context.request.headers.get('x-cron-secret');
     const configuredSecret = context.env.CRON_SECRET;
 
-    // Ako secret nije postavljen u env, blokiraj sve radi sigurnosti
     if (!configuredSecret) {
-      return new Response("Server Misconfiguration: CRON_SECRET missing", { status: 500 });
+      return new Response(JSON.stringify({ 
+        success: false, 
+        message: "Server Misconfiguration: CRON_SECRET missing in Environment Variables" 
+      }), { 
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     if (authHeader !== configuredSecret) {
-      return new Response("Unauthorized: Invalid Cron Secret", { status: 401 });
+      return new Response(JSON.stringify({ 
+        success: false, 
+        message: "Unauthorized: Invalid Cron Secret" 
+      }), { 
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     // 2. SETUP ENVIRONMENT
     const url = new URL(context.request.url);
-    const target = url.searchParams.get('target') === 'dev' ? 'dev' : 'prod';
+    const paramTarget = url.searchParams.get('target');
+    
+    // Određujemo koju BAZU čitamo (Dev ili Prod)
+    const target = (paramTarget === 'dev' || paramTarget === 'stage') ? 'dev' : 'prod';
     const db = target === 'dev' ? context.env.AD_EXCLUSION_KV_DEV : context.env.AD_EXCLUSION_KV;
-    const purgeUrl = target === 'dev' ? context.env.CF_PURGE_URL_DEV : context.env.CF_PURGE_URL;
+    
+    // DEFINIRAMO LISTU ZA PURGE: Uzimamo OBA URL-a ako postoje
+    // Zahtjev: "I oba se moraju probusiti ako ima objavljenih schedule promjena na bilo kojem."
+    const urlsToPurge: string[] = [];
+    if (context.env.CF_PURGE_URL) urlsToPurge.push(context.env.CF_PURGE_URL.trim());
+    if (context.env.CF_PURGE_URL_DEV) urlsToPurge.push(context.env.CF_PURGE_URL_DEV.trim());
+
     const zoneId = context.env.CF_ZONE_ID;
     const apiToken = context.env.CF_API_TOKEN;
 
-    if (!db || !purgeUrl || !zoneId || !apiToken) {
+    // Provjera konfiguracije
+    const missingKeys: string[] = [];
+    if (!db) missingKeys.push(target === 'dev' ? 'AD_EXCLUSION_KV_DEV' : 'AD_EXCLUSION_KV');
+    if (!zoneId) missingKeys.push('CF_ZONE_ID');
+    if (!apiToken) missingKeys.push('CF_API_TOKEN');
+    if (urlsToPurge.length === 0) missingKeys.push('CF_PURGE_URL OR CF_PURGE_URL_DEV');
+
+    if (missingKeys.length > 0) {
+      console.error(`[SCHEDULER] Missing configuration for target '${target}':`, missingKeys);
       return new Response(JSON.stringify({ 
         success: false, 
-        message: "Missing DB, URL, ZoneID or Token configuration" 
-      }), { status: 500 });
+        message: "Missing configuration variables", 
+        target,
+        missingKeys 
+      }), { 
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
-    // 3. FETCH RULES DIRECTLY FROM KV
-    // Čitamo direktno iz KV-a jer smo u istom Worker kontekstu (server-side)
-    // Ključ je ovisan o env-u (vidi sync.ts logiku)
+    // 3. FETCH RULES FROM DB
     const storageKey = target === 'dev' ? "rules_data_dev" : "rules_data";
-    const dataRaw = await db.get(storageKey);
+    const dataRaw = await db!.get(storageKey);
     
     if (!dataRaw) {
       return new Response(JSON.stringify({ success: true, message: "No rules in database", action: "none" }), { 
@@ -65,23 +96,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const now = Date.now();
     
     // 4. DETECTION LOGIC
-    // Tražimo pravila koja su se promijenila u zadnjih 90 sekundi (dovoljno za cron koji se vrti svaku minutu)
-    // Gledamo i StartDate i EndDate.
     const TIME_WINDOW = 90 * 1000; // 90 sekundi
 
     const transitioningRules = rules.filter((r: any) => {
-      if (!r.isActive) return false; // Ignoriramo deaktivirana pravila
+      if (!r.isActive) return false;
 
       let isStarting = false;
       let isEnding = false;
 
-      // Da li je pravilo upravo počelo? (Sada je unutar 90s od starta)
       if (r.startDate) {
         const diff = Math.abs(now - r.startDate);
         if (diff <= TIME_WINDOW) isStarting = true;
       }
 
-      // Da li je pravilo upravo završilo? (Sada je unutar 90s od kraja)
       if (r.endDate) {
         const diff = Math.abs(now - r.endDate);
         if (diff <= TIME_WINDOW) isEnding = true;
@@ -101,8 +128,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 5. EXECUTE PURGE
+    // 5. EXECUTE PURGE (BOTH URLS)
     console.log(`[SCHEDULER] Triggering purge due to rules: ${transitioningRules.map((r:any) => r.name).join(', ')}`);
+    console.log(`[SCHEDULER] Purging URLs:`, urlsToPurge);
 
     const cfResponse = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/purge_cache`, {
       method: 'POST',
@@ -111,7 +139,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        files: [purgeUrl]
+        files: urlsToPurge // Šaljemo array svih URL-ova
       })
     });
 
@@ -121,6 +149,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       success: true,
       action: "PURGE_TRIGGERED",
       reason: "Rule Transition Detected",
+      targetDB: target,
+      purgedUrls: urlsToPurge,
       transitioningRules: transitioningRules.map((r:any) => ({ name: r.name, start: r.startDate, end: r.endDate })),
       cfResult: purgeResult
     }), {
