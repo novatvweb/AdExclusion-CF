@@ -42,6 +42,30 @@ Dodajte ove varijable pod **Settings > Environment variables** za oba okruženja
 | `CF_ZONE_ID` | ID Zone |
 | `CF_PURGE_URL` | URL Produkcijske skripte |
 | `CF_PURGE_URL_DEV` | URL Development skripte |
+| `CRON_SECRET` | Tajni ključ za zaštitu Scheduler endpointa |
+
+### ⏰ Postavljanje Schedulera (Cron Trigger)
+
+Budući da je ovo Pages projekt, "Cron Trigger" postavljamo kao vanjski poziv ili Worker koji "pinga" naš API.
+
+1. **Generirajte `CRON_SECRET`** (dugi random string) i spremite ga u Environment Variables.
+2. **Kreirajte Cron Trigger** (Može biti Cloudflare Worker ili bilo koji cron servis):
+
+**Primjer Workera za pinganje:**
+```javascript
+export default {
+  async scheduled(event, env, ctx) {
+    // Zamijenite s vašom domenom
+    const url = "https://adexclusion.dnevnik.hr/api/scheduler?target=prod"; 
+    await fetch(url, {
+      headers: {
+        "x-cron-secret": "VAŠ_CRON_SECRET_OVDJE" // Mora odgovarati onome u Env Variables
+      }
+    });
+  }
+};
+```
+3. Postavite trigger na `* * * * *` (svaku minutu).
 
 ### 📝 Kako doći do Cloudflare podataka?
 
