@@ -13,8 +13,8 @@ interface Env {
 export const onRequest: PagesFunction<Env> = async ({ request, env, next }) => {
   const url = new URL(request.url);
 
-  // Dozvoli pristup ruti za prijavu i javnim isključenjima
-  if (url.pathname === "/api/login" || url.pathname.startsWith("/exclusions/")) {
+  // Dozvoli pristup ruti za prijavu, scheduleru (ima svoj auth) i javnim isključenjima
+  if (url.pathname === "/api/login" || url.pathname === "/api/scheduler" || url.pathname.startsWith("/exclusions/")) {
     return next();
   }
 
