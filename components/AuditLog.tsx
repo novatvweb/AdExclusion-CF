@@ -53,6 +53,12 @@ export const AuditLog: React.FC<AuditLogProps> = ({ onRollbackFinished, canRollb
     }).format(new Date(ts));
   };
 
+  const formatSnapshotId = (id: string) => {
+    // ID je obično "snapshot_170343434343". 
+    // Želimo prikazati samo zadnjih 8 znamenki timestampa ili hash ako postoji.
+    return id.replace('snapshot_', '#');
+  };
+
   if (loading) return <div className="p-10 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest animate-pulse">Učitavanje povijesti...</div>;
 
   if (logs.length === 0) return <div className="p-10 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest">Nema zapisa u povijesti.</div>;
@@ -95,8 +101,8 @@ export const AuditLog: React.FC<AuditLogProps> = ({ onRollbackFinished, canRollb
                 </p>
 
                 <div className="flex items-center justify-between pt-1">
-                  <code className="text-[9px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                    ID: {log.snapshotId.substring(0, 8)}...
+                  <code className="text-[9px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200" title={log.snapshotId}>
+                    VERZIJA: {formatSnapshotId(log.snapshotId)}
                   </code>
                   
                   {canRollback && log.action !== 'PUBLISH_PROD' && log.action !== 'PUBLISH_DEV' && (

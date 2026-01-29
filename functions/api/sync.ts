@@ -15,6 +15,13 @@ interface Env {
   AD_EXCLUSION_KV_STAGE?: KVNamespace;
 }
 
+// Helper za usporedbu objekata (za detekciju promjena u sadržaju)
+function isRuleDifferent(r1: any, r2: any): boolean {
+  // Ignoriramo isActive jer to ide u TOGGLE, ignoriramo createdAt
+  const normalize = (r: any) => JSON.stringify({ ...r, isActive: true, createdAt: 0 });
+  return normalize(r1) !== normalize(r2);
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   // Detect Environment
   const isProd = !!context.env.AD_EXCLUSION_KV;
@@ -32,7 +39,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   let data = await db.get("rules_data");
 
   // 2. Smart Fallback for STAGE/DEV:
-  // If workspace is empty, try to recover 'rules_data_dev' (migration helper)
   if (!data && !isProd) {
     const devData = await db.get("rules_data_dev");
     if (devData) {
@@ -64,10 +70,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 1. Get current data for comparison
     const oldDataRaw = await db.get(storageKey);
     const oldData = oldDataRaw ? JSON.parse(oldDataRaw) : { rules: [], script: "" };
-    
+    const oldRules = oldData.rules || [];
+
     // 2. Prepare updated data
     const updatedData = {
-      rules: rules || oldData.rules,
+      rules: rules || oldRules,
       script: script !== undefined ? script : oldData.script
     };
 
@@ -78,25 +85,52 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const snapshotId = `snapshot_${Date.now()}`;
     await db.put(snapshotId, JSON.stringify(updatedData.rules));
 
+    // --- DETALJNA DETEKCIJA PROMJENA ---
     let action = "UPDATE";
-    let details = `Promjena pravila na ${target.toUpperCase()}`;
+    let details = "";
 
     if (script) {
+      // Slučaj: PUBLISH (Objava skripte)
       action = target === 'dev' ? "PUBLISH_DEV" : "PUBLISH_PROD";
-      details = `Objavljena skripta i ${rules.length} pravila na ${target.toUpperCase()}`;
-    } else if (rules.length > oldData.rules.length) {
-      action = "CREATE";
-      const newRule = rules[0];
-      details = `Dodano novo pravilo: "${newRule.name}"`;
-    } else if (rules.length < oldData.rules.length) {
-      action = "DELETE";
-      details = `Obrisano pravilo`;
+      details = `Generirana i objavljena nova skripta (${rules.length} pravila) na ${target.toUpperCase()}.`;
     } else {
-      // Check for toggle or simple update
-      const changedIndex = rules.findIndex((r, i) => r.isActive !== oldData.rules[i]?.isActive);
-      if (changedIndex !== -1) {
+      // Slučaj: SAVE (Rad na pravilima)
+      const newIds = new Set(rules.map((r: any) => r.id));
+      const oldIds = new Set(oldRules.map((r: any) => r.id));
+
+      // 1. Detekcija dodavanja
+      const addedRule = rules.find((r: any) => !oldIds.has(r.id));
+      
+      // 2. Detekcija brisanja
+      const deletedRule = oldRules.find((r: any) => !newIds.has(r.id));
+
+      // 3. Detekcija izmjena
+      const modifiedRule = rules.find((r: any) => {
+        const old = oldRules.find((or: any) => or.id === r.id);
+        return old && isRuleDifferent(r, old);
+      });
+
+      // 4. Detekcija toggle-a (samo status)
+      const toggledRule = rules.find((r: any) => {
+        const old = oldRules.find((or: any) => or.id === r.id);
+        return old && r.isActive !== old.isActive && !isRuleDifferent(r, old);
+      });
+
+      if (addedRule) {
+        action = "CREATE";
+        details = `Kreirano novo pravilo: "${addedRule.name}"`;
+      } else if (deletedRule) {
+        action = "DELETE";
+        details = `Obrisano pravilo: "${deletedRule.name}"`;
+      } else if (modifiedRule) {
+        action = "UPDATE";
+        details = `Izmjenjene postavke pravila: "${modifiedRule.name}"`;
+      } else if (toggledRule) {
         action = "TOGGLE";
-        details = `Pravilo "${rules[changedIndex].name}" je ${rules[changedIndex].isActive ? 'uključeno' : 'isključeno'}`;
+        details = `Pravilo "${toggledRule.name}" je ${toggledRule.isActive ? 'uključeno' : 'isključeno'}`;
+      } else {
+        // Fallback ako nismo sigurni (npr. promjena redoslijeda)
+        details = `Ažuriranje liste pravila (Workspace Save)`;
       }
     }
 
