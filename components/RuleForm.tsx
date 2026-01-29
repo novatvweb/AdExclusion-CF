@@ -51,15 +51,24 @@ const getSelectorError = (selector: string): string | null => {
     return "Neispravna CSS sintaksa (provjerite zagrade i znakove).";
   }
 
-  // 2. Heuristička provjera za "gole" riječi
-  // Ako selektor izgleda kao obična riječ (slova, brojevi, crtice), a nema . # [ : > + ~
-  // Provjeravamo je li to standardni HTML tag.
-  const isBareWord = /^[a-zA-Z0-9-_]+$/.test(selector);
+  // 2. Business Logic Provjera
+  // Ako selektor eksplicitno ne počinje s ID-em, Klasom, Atributom ili Wildcardom,
+  // preglednik ga tretira kao TYPE SELECTOR (HTML Tag).
+  // Moramo provjeriti je li taj "tag" validan HTML element.
   
-  if (isBareWord) {
-    const lowerSel = selector.toLowerCase();
-    if (!STANDARD_TAGS.includes(lowerSel)) {
-      return `Zaboravili ste prefiks? Za klasu koristite ".${selector}", a za ID "#${selector}".`;
+  const startsWithExplicitIndicator = /^[.#\[\*:]/.test(selector);
+
+  if (!startsWithExplicitIndicator) {
+    // Ekstrahiraj prvu "riječ" do prvog specijalnog znaka (. # [ : razmak > + ~)
+    // Primjer: "demo.test" -> "demo", "-swda" -> "-swda", "div > p" -> "div"
+    const match = selector.match(/^([a-zA-Z0-9\-_]+)/);
+    
+    if (match) {
+      const supposedTagName = match[1].toLowerCase();
+      
+      if (!STANDARD_TAGS.includes(supposedTagName)) {
+        return `Selektor počinje s "${supposedTagName}", što nije standardni HTML element. Jeste li zaboravili točku (.${supposedTagName}) ili ljestve (#${supposedTagName})?`;
+      }
     }
   }
 
