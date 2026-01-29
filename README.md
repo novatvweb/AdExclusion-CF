@@ -1,37 +1,65 @@
 
 # AdExclusion Enterprise 🚀
 
-**AdExclusion Enterprise** je optimiziran za Cloudflare Pages Git-integritaciju.
+**AdExclusion Enterprise** je optimiziran za Cloudflare Pages.
 
-## ✅ Cloudflare Dashboard Konfiguracija
+## ⚠️ KRITIČNO: Setup Okruženja
 
-Kako bi Build, Login i Purge radili ispravno, potrebno je podesiti sljedeće u Cloudflare Dashboardu:
+Kako bi imali potpunu kontrolu nad PROD i DEV okruženjima, **ne koristimo `wrangler.toml`** u repozitoriju.
 
-### 1. Bindings (Settings > Functions)
-- **KV Namespace Binding**: 
-  - Variable name: `AD_EXCLUSION_KV`
-  - KV namespace: Odaberite vaš namespace.
+1. **Obrišite `wrangler.toml`** ako postoji.
+2. Za lokalni razvoj koristimo **`wrangler.local.toml`**.
+3. Bindinge postavljamo **ručno** u Cloudflare Dashboardu.
 
-### 2. Variables and Secrets (Settings > Environment variables)
-Dodajte ove varijable pod **Secrets** (encrypted) za Production i Preview okruženja:
+### Lokalni Razvoj
+Pokrenite aplikaciju koristeći novu lokalnu konfiguraciju:
+```bash
+npm run dev
+```
 
-| Variable Name | Description | Mandatory |
-| :--- | :--- | :--- |
-| `ADMIN_PASS` | Lozinka za pristup admin sučelju (SuperAdmin, username: `admin`) | **DA** |
-| `USER_PASS` | Lozinka za pristup standardnog korisnika (username: `user`) | **NE** |
-| `CF_API_TOKEN` | API Token sa dozvolom `Zone.Cache Purge` | DA |
-| `CF_ZONE_ID` | ID Zone vaše domene | DA |
-| `CF_PURGE_URL` | URL Produkcijske skripte (npr. `.../exclusions/sponsorship_exclusions.js`) | DA |
-| `CF_PURGE_URL_DEV` | URL Development skripte (npr. `.../exclusions/sponsorship_exclusions-dev.js`) | DA |
+### Cloudflare Dashboard Konfiguracija (Manualna)
 
-### Razine Pristupa (RBAC)
-- **admin**: Puni pristup sustavu, uključujući Custom JavaScript Injection.
-- **user**: Standardni pristup, ali bez mogućnosti dodavanja ili pregleda Custom JS koda.
+Budući da smo maknuli `wrangler.toml`, Dashboard će se otključati. Postavite bindinge ovako:
 
-### Workflow Okruženja
-1. **DRAFT**: Sva pravila se automatski spremaju u radni prostor prilikom uređivanja.
-2. **OBJAVI NA DEV**: Šalje trenutna pravila na `/exclusions/sponsorship_exclusions-dev.js`. Koristite ovo za testiranje na portalu bez utjecaja na korisnike.
-3. **OBJAVI NA PROD**: Šalje pravila na `/exclusions/sponsorship_exclusions.js`. Ovo je "Live" okruženje.
+**1. ZA PRODUKCIJSKI PROJEKT (PROD):**
+*   Settings > Functions > KV Namespace Bindings
+*   Variable name: **`AD_EXCLUSION_KV`**
+*   Value: *Vaš PROD KV namespace*
+
+**2. ZA STAGING / DEV PROJEKT:**
+*   Settings > Functions > KV Namespace Bindings
+*   Variable name: **`AD_EXCLUSION_KV_DEV`**
+*   Value: *Vaš DEV KV namespace*
+
+### Variables and Secrets
+Dodajte ove varijable pod **Settings > Environment variables** za oba okruženja:
+
+| Variable Name | Description |
+| :--- | :--- |
+| `ADMIN_PASS` | Lozinka za pristup admin sučelju |
+| `USER_PASS` | Lozinka za pristup standardnog korisnika |
+| `CF_API_TOKEN` | API Token (Zone.Cache Purge) |
+| `CF_ZONE_ID` | ID Zone |
+| `CF_PURGE_URL` | URL Produkcijske skripte |
+| `CF_PURGE_URL_DEV` | URL Development skripte |
+
+### 📝 Kako doći do Cloudflare podataka?
+
+**1. CF_ZONE_ID (ID Zone)**
+1. Otvorite Cloudflare Dashboard i odaberite svoju domenu.
+2. Na glavnom **Overview** tabu, skrolajte dolje dok s desne strane ne vidite sekciju **API**.
+3. Kopirajte vrijednost pod **Zone ID**.
+
+**2. CF_API_TOKEN (Cache Purge Token)**
+1. Otiđite na [My Profile > API Tokens](https://dash.cloudflare.com/profile/api-tokens).
+2. Kliknite **Create Token**.
+3. Odaberite **Create Custom Token** (na dnu).
+4. Imenujte ga (npr. "AdExclusion Purge").
+5. Pod **Permissions** dodajte:
+   *   `Zone` -> `Cache Purge` -> `Purge`
+6. Pod **Zone Resources** odaberite:
+   *   `Include` -> `Specific zone` -> *Vaša domena*
+7. Kliknite **Continue to Summary** -> **Create Token** i kopirajte ga.
 
 ---
 *Senior Systems Architect*
