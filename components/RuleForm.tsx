@@ -11,6 +11,13 @@ interface RuleFormProps {
   canManageJs: boolean;
 }
 
+// Lista standardnih HTML tagova koje dozvoljavamo bez prefiksa (. ili #)
+const STANDARD_TAGS = [
+  'div', 'span', 'p', 'a', 'img', 'header', 'footer', 'section', 'article', 
+  'aside', 'main', 'nav', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li',
+  'table', 'tr', 'td', 'th', 'form', 'input', 'button', 'video', 'iframe', 'body', 'html'
+];
+
 /**
  * Helper koji pretvara timestamp u string kompatibilan s datetime-local inputom
  * koristeći isključivo lokalno vrijeme (Europe/Zagreb) bez UTC transformacije.
@@ -31,17 +38,32 @@ const toLocalDateTimeString = (timestamp: number | undefined): string => {
 };
 
 /**
- * Validira CSS selektor koristeći nativni browser parser.
- * Ako browser baci grešku, selektor nije validan.
+ * Validira CSS selektor.
+ * Vraća NULL ako je validno, ili STRING s porukom greške.
  */
-const isValidSelector = (selector: string): boolean => {
+const getSelectorError = (selector: string): string | null => {
+  if (!selector || !selector.trim()) return null;
+
+  // 1. Sintaktička provjera (Native Browser Parser)
   try {
-    // createDocumentFragment je lakši od document i ne renderira se
     document.createDocumentFragment().querySelector(selector);
-    return true;
   } catch {
-    return false;
+    return "Neispravna CSS sintaksa (provjerite zagrade i znakove).";
   }
+
+  // 2. Heuristička provjera za "gole" riječi
+  // Ako selektor izgleda kao obična riječ (slova, brojevi, crtice), a nema . # [ : > + ~
+  // Provjeravamo je li to standardni HTML tag.
+  const isBareWord = /^[a-zA-Z0-9-_]+$/.test(selector);
+  
+  if (isBareWord) {
+    const lowerSel = selector.toLowerCase();
+    if (!STANDARD_TAGS.includes(lowerSel)) {
+      return `Zaboravili ste prefiks? Za klasu koristite ".${selector}", a za ID "#${selector}".`;
+    }
+  }
+
+  return null;
 };
 
 export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialData, canManageJs }) => {
@@ -55,7 +77,6 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   const [customJs, setCustomJs] = useState(initialData?.customJs || '');
   const [respectAdsEnabled, setRespectAdsEnabled] = useState(initialData?.respectAdsEnabled ?? true);
   
-  // Koristimo helper koji ne oduzima sate
   const [startDate, setStartDate] = useState<string>(toLocalDateTimeString(initialData?.startDate));
   const [endDate, setEndDate] = useState<string>(toLocalDateTimeString(initialData?.endDate));
   
@@ -82,10 +103,9 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
     const newVal = e.target.value;
     setSelector(newVal);
     
-    // Clear error on change if it becomes valid or empty
-    if (!newVal || isValidSelector(newVal)) {
-      setSelectorError(null);
-    }
+    // Validate on change for immediate feedback
+    const error = getSelectorError(newVal);
+    setSelectorError(error);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -96,16 +116,15 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
       return;
     }
 
-    if (!isValidSelector(selector)) {
-      setSelectorError("Neispravna sintaksa CSS selektora.");
-      // Scroll to selector input
+    const error = getSelectorError(selector);
+    if (error) {
+      setSelectorError(error);
       const selectorInput = document.getElementById('targetSelectorInput');
       selectorInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       selectorInput?.focus();
       return;
     }
 
-    // Pri pretvaranju natrag u timestamp, Date konstruktor će koristiti lokalno vrijeme preglednika (HR)
     onSubmit({
       name,
       conditions,
