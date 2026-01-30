@@ -11,12 +11,12 @@ type PagesFunction<Env = any> = (context: {
 
 interface Env {
   AD_EXCLUSION_KV?: KVNamespace;
-  AD_EXCLUSION_KV_DEV?: KVNamespace;
+  AD_EXCLUSION_KV_STAGE?: KVNamespace;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const db = context.env.AD_EXCLUSION_KV || context.env.AD_EXCLUSION_KV_DEV;
+    const db = context.env.AD_EXCLUSION_KV || context.env.AD_EXCLUSION_KV_STAGE;
     
     if (!db) {
       throw new Error("KV Storage not bound");
@@ -52,7 +52,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       snapshotId
     };
 
-    await db.put("audit_log", JSON.stringify([newEntry, ...auditLogs].slice(0, 100)));
+    // RETENTION POLICY: Keep only last 30 logs
+    await db.put("audit_log", JSON.stringify([newEntry, ...auditLogs].slice(0, 30)));
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { "Content-Type": "application/json" }

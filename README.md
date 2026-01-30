@@ -5,7 +5,7 @@
 
 ## ⚠️ KRITIČNO: Setup Okruženja
 
-Kako bi imali potpunu kontrolu nad PROD i DEV okruženjima, **ne koristimo `wrangler.toml`** u repozitoriju.
+Kako bi imali potpunu kontrolu nad PROD i STAGE okruženjima, **ne koristimo `wrangler.toml`** u repozitoriju.
 
 1. **Obrišite `wrangler.toml`** ako postoji.
 2. Za lokalni razvoj koristimo **`wrangler.local.toml`**.
@@ -28,7 +28,7 @@ Budući da smo maknuli `wrangler.toml`, Dashboard će se otključati. Postavite 
 
 **2. ZA STAGING / DEV PROJEKT:**
 *   Settings > Functions > KV Namespace Bindings
-*   Variable name: **`AD_EXCLUSION_KV_DEV`**
+*   Variable name: **`AD_EXCLUSION_KV_STAGE`**
 *   Value: *Vaš DEV KV namespace*
 
 ### Variables and Secrets

@@ -11,6 +11,13 @@ interface RuleFormProps {
   canManageJs: boolean;
 }
 
+// Lista standardnih HTML tagova koje dozvoljavamo bez prefiksa (. ili #)
+const STANDARD_TAGS = [
+  'div', 'span', 'p', 'a', 'img', 'header', 'footer', 'section', 'article', 
+  'aside', 'main', 'nav', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li',
+  'table', 'tr', 'td', 'th', 'form', 'input', 'button', 'video', 'iframe', 'body', 'html'
+];
+
 /**
  * Helper koji pretvara timestamp u string kompatibilan s datetime-local inputom
  * koristeći isključivo lokalno vrijeme (Europe/Zagreb) bez UTC transformacije.
@@ -30,6 +37,44 @@ const toLocalDateTimeString = (timestamp: number | undefined): string => {
   return `${y}-${m}-${d}T${hh}:${mm}`;
 };
 
+/**
+ * Validira CSS selektor.
+ * Vraća NULL ako je validno, ili STRING s porukom greške.
+ */
+const getSelectorError = (selector: string): string | null => {
+  if (!selector || !selector.trim()) return null;
+
+  // 1. Sintaktička provjera (Native Browser Parser)
+  try {
+    document.createDocumentFragment().querySelector(selector);
+  } catch {
+    return "Neispravna CSS sintaksa (provjerite zagrade i znakove).";
+  }
+
+  // 2. Business Logic Provjera
+  // Ako selektor eksplicitno ne počinje s ID-em, Klasom, Atributom ili Wildcardom,
+  // preglednik ga tretira kao TYPE SELECTOR (HTML Tag).
+  // Moramo provjeriti je li taj "tag" validan HTML element.
+  
+  const startsWithExplicitIndicator = /^[.#\[\*:]/.test(selector);
+
+  if (!startsWithExplicitIndicator) {
+    // Ekstrahiraj prvu "riječ" do prvog specijalnog znaka (. # [ : razmak > + ~)
+    // Primjer: "demo.test" -> "demo", "-swda" -> "-swda", "div > p" -> "div"
+    const match = selector.match(/^([a-zA-Z0-9\-_]+)/);
+    
+    if (match) {
+      const supposedTagName = match[1].toLowerCase();
+      
+      if (!STANDARD_TAGS.includes(supposedTagName)) {
+        return `Selektor počinje s "${supposedTagName}", što nije standardni HTML element. Jeste li zaboravili točku (.${supposedTagName}) ili ljestve (#${supposedTagName})?`;
+      }
+    }
+  }
+
+  return null;
+};
+
 export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialData, canManageJs }) => {
   const [name, setName] = useState(initialData?.name || '');
   const [logicalOperator, setLogicalOperator] = useState<LogicalOperator>(initialData?.logicalOperator || 'AND');
@@ -41,11 +86,11 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   const [customJs, setCustomJs] = useState(initialData?.customJs || '');
   const [respectAdsEnabled, setRespectAdsEnabled] = useState(initialData?.respectAdsEnabled ?? true);
   
-  // Koristimo helper koji ne oduzima sate
   const [startDate, setStartDate] = useState<string>(toLocalDateTimeString(initialData?.startDate));
   const [endDate, setEndDate] = useState<string>(toLocalDateTimeString(initialData?.endDate));
   
   const [showAdvanced, setShowAdvanced] = useState(!!initialData?.customJs && canManageJs);
+  const [selectorError, setSelectorError] = useState<string | null>(null);
 
   const addCondition = () => {
     setConditions([...conditions, { targetKey: 'section', operator: Operator.EQUALS, value: '', caseSensitive: false }]);
@@ -63,14 +108,32 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
     setConditions(newConditions);
   };
 
+  const handleSelectorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVal = e.target.value;
+    setSelector(newVal);
+    
+    // Validate on change for immediate feedback
+    const error = getSelectorError(newVal);
+    setSelectorError(error);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!name || conditions.some(c => !c.value) || !selector) {
       alert("Molimo popunite sva obavezna polja.");
       return;
     }
 
-    // Pri pretvaranju natrag u timestamp, Date konstruktor će koristiti lokalno vrijeme preglednika (HR)
+    const error = getSelectorError(selector);
+    if (error) {
+      setSelectorError(error);
+      const selectorInput = document.getElementById('targetSelectorInput');
+      selectorInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      selectorInput?.focus();
+      return;
+    }
+
     onSubmit({
       name,
       conditions,
@@ -247,13 +310,32 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
       <div className="grid grid-cols-1 gap-5 pt-3">
         <div>
           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1">Target Element (CSS Selektor)</label>
-          <input
-            type="text"
-            value={selector}
-            onChange={(e) => setSelector(e.target.value)}
-            placeholder="npr. .bg-branding-main ili #ad-banner"
-            className="w-full h-14 md:h-12 bg-slate-50 border border-slate-200 px-4 rounded-xl text-sm font-bold font-mono outline-none shadow-inner focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all"
-          />
+          <div className="relative">
+            <input
+              id="targetSelectorInput"
+              type="text"
+              value={selector}
+              onChange={handleSelectorChange}
+              placeholder="npr. .bg-branding-main ili #ad-banner"
+              className={`w-full h-14 md:h-12 bg-slate-50 border px-4 rounded-xl text-sm font-bold font-mono outline-none shadow-inner transition-all ${
+                selectorError 
+                  ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10' 
+                  : 'border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5'
+              }`}
+            />
+            {selector && !selectorError && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500" title="Valid Syntax">
+                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+              </div>
+            )}
+          </div>
+          
+          {selectorError && (
+            <div className="mt-2 flex items-center gap-2 text-red-500 animate-in fade-in slide-in-from-top-1">
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              <span className="text-[10px] font-bold uppercase tracking-wide">{selectorError}</span>
+            </div>
+          )}
         </div>
 
         {canManageJs && (
